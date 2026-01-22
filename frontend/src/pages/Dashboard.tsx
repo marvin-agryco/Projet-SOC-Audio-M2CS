@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Activity, AlertTriangle, Monitor, Users, Radio, Pause } from 'lucide-react'
-import { fetchDashboardStats, fetchDashboardTrends, fetchEvents } from '../api'
+import { fetchDashboardStats, fetchDashboardTrendsWithRange, fetchEvents } from '../api'
 import { DashboardStats, SecurityEvent } from '../types'
 import StatCard from '../components/StatCard'
 import EventVolumeChart from '../components/EventVolumeChart'
@@ -16,7 +16,7 @@ interface DashboardProps {
   realtimeEvents: SecurityEvent[]
 }
 
-type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d'
+type TimeRange = '5m' | '15m' | '30m' | '1h' | '6h' | '24h' | '7d' | '30d'
 
 // Source colors for donut chart
 const SOURCE_COLORS: Record<string, string> = {
@@ -45,11 +45,11 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
   const [alertModalOpen, setAlertModalOpen] = useState(false)
   const [isLiveMode, setIsLiveMode] = useState(true)
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (currentTimeRange: TimeRange = timeRange) => {
     try {
       const [statsData, trendsData, eventsData] = await Promise.all([
         fetchDashboardStats(),
-        fetchDashboardTrends(),
+        fetchDashboardTrendsWithRange(currentTimeRange),
         fetchEvents({ severity: 'critical,high', status: 'new', limit: 10 }),
       ])
       setStats(statsData)
@@ -60,7 +60,7 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [timeRange])
 
   useEffect(() => {
     loadData()
@@ -82,8 +82,7 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
     setTimeRange(range)
     setChartLoading(true)
     try {
-      // In a real app, this would fetch data for the specific time range
-      const trendsData = await fetchDashboardTrends()
+      const trendsData = await fetchDashboardTrendsWithRange(range)
       setTrends(trendsData)
     } catch (error) {
       console.error('Failed to load trends:', error)

@@ -223,12 +223,101 @@ def generate_attack_scenario():
     print("Attack scenario complete!")
 
 
+def run_backfill(days: int = 7, count: int = 1000):
+    """Generate historical events spread across a time range.
+
+    Args:
+        days: Number of days to backfill (default: 7)
+        count: Total number of events to generate (default: 1000)
+    """
+    print(f"Backfilling {count} events over the last {days} days...")
+    print("-" * 50)
+
+    now = datetime.now()
+    start_time = now - timedelta(days=days)
+    time_range_seconds = days * 24 * 60 * 60
+
+    # Generate events with random timestamps spread across the time range
+    sent = 0
+    failed = 0
+
+    # Create batches for efficiency
+    batch_size = 50
+    batch = []
+
+    for i in range(count):
+        # Generate random timestamp within the range
+        random_seconds = random.random() * time_range_seconds
+        event_time = start_time + timedelta(seconds=random_seconds)
+
+        # Generate event
+        event = generate_event()
+        event["timestamp"] = event_time.isoformat()
+
+        # Update raw_log with correct timestamp
+        event["raw_log"] = event["raw_log"].replace(
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            event_time.strftime("%Y-%m-%d %H:%M:%S")
+        )
+
+        batch.append(event)
+
+        # Send batch when full
+        if len(batch) >= batch_size:
+            try:
+                response = requests.post(
+                    API_URL.replace('/ingest', '/ingest/batch'),
+                    json={"events": batch},
+                    timeout=30
+                )
+                if response.status_code == 201:
+                    result = response.json()
+                    sent += result.get('created', 0)
+                    failed += len(result.get('errors', []))
+                else:
+                    failed += len(batch)
+            except requests.RequestException as e:
+                print(f"Batch failed: {e}")
+                failed += len(batch)
+
+            # Progress update
+            progress = ((i + 1) / count) * 100
+            print(f"Progress: {progress:.1f}% ({sent} sent, {failed} failed)")
+            batch = []
+
+    # Send remaining events
+    if batch:
+        try:
+            response = requests.post(
+                API_URL.replace('/ingest', '/ingest/batch'),
+                json={"events": batch},
+                timeout=30
+            )
+            if response.status_code == 201:
+                result = response.json()
+                sent += result.get('created', 0)
+                failed += len(result.get('errors', []))
+            else:
+                failed += len(batch)
+        except requests.RequestException as e:
+            print(f"Final batch failed: {e}")
+            failed += len(batch)
+
+    print("-" * 50)
+    print(f"Backfill complete!")
+    print(f"  - Events sent: {sent}")
+    print(f"  - Events failed: {failed}")
+    print(f"  - Time range: {start_time.strftime('%Y-%m-%d %H:%M')} to {now.strftime('%Y-%m-%d %H:%M')}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SOC Dashboard Log Generator")
     parser.add_argument("--interval", "-i", type=float, default=2.0, help="Interval between events (seconds)")
     parser.add_argument("--burst", "-b", action="store_true", help="Enable burst mode (simulates attacks)")
     parser.add_argument("--count", "-c", type=int, help="Number of events to generate (infinite if not set)")
     parser.add_argument("--attack", "-a", action="store_true", help="Generate attack scenario")
+    parser.add_argument("--backfill", action="store_true", help="Generate historical events (backfill)")
+    parser.add_argument("--days", "-d", type=int, default=7, help="Number of days to backfill (default: 7)")
     parser.add_argument("--url", "-u", type=str, default=API_URL, help="API URL")
 
     args = parser.parse_args()
@@ -236,5 +325,8 @@ if __name__ == "__main__":
 
     if args.attack:
         generate_attack_scenario()
+    elif args.backfill:
+        backfill_count = args.count if args.count else 1000
+        run_backfill(days=args.days, count=backfill_count)
     else:
         run_generator(interval=args.interval, burst=args.burst, count=args.count)

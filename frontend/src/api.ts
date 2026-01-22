@@ -122,10 +122,11 @@ export async function fetchDashboardStatsWithRange(timeRange: string): Promise<D
   return data
 }
 
-export async function fetchDashboardTrendsWithRange(timeRange: string): Promise<{
+export async function fetchDashboardTrendsWithRange(timeframe: string): Promise<{
   hourly: Array<{ hour: string; count: number }>
   daily: Array<{ date: string; critical: number; high: number; medium: number; low: number }>
+  timeframe: string
 }> {
-  const { data } = await api.get('/dashboard/trends', { params: { time_range: timeRange } })
+  const { data } = await api.get('/dashboard/trends', { params: { timeframe } })
   return data
 }

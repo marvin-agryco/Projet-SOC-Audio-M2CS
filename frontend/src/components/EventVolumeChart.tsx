@@ -1,7 +1,7 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import clsx from 'clsx'
 
-type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d'
+type TimeRange = '5m' | '15m' | '30m' | '1h' | '6h' | '24h' | '7d' | '30d'
 
 interface EventVolumeChartProps {
     data: Array<{ time: string; value: number }>
@@ -12,6 +12,9 @@ interface EventVolumeChartProps {
 }
 
 const timeRangeOptions: Array<{ value: TimeRange; label: string }> = [
+    { value: '5m', label: '5m' },
+    { value: '15m', label: '15m' },
+    { value: '30m', label: '30m' },
     { value: '1h', label: '1h' },
     { value: '6h', label: '6h' },
     { value: '24h', label: '24h' },
