@@ -52,37 +52,33 @@ class Playbook(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Denormalized stats — updated on execute/complete to avoid O(N) queries on every GET
+    run_count = db.Column(db.Integer, default=0, nullable=False)
+    last_run_at = db.Column(db.DateTime, nullable=True)
+    avg_duration_seconds = db.Column(db.Float, nullable=True)
+
     # Relationship to executions
     executions = db.relationship('PlaybookExecution', backref='playbook', lazy='dynamic')
 
     @property
     def triggered_count(self):
-        return self.executions.count()
+        return self.run_count or 0
 
     @property
     def last_run(self):
-        last_exec = self.executions.order_by(PlaybookExecution.started_at.desc()).first()
-        return last_exec.started_at if last_exec else None
+        return self.last_run_at
 
     @property
     def avg_duration(self):
-        completed = self.executions.filter(
-            PlaybookExecution.status == ExecutionStatus.COMPLETED,
-            PlaybookExecution.completed_at.isnot(None)
-        ).all()
-        if not completed:
+        if not self.avg_duration_seconds:
             return None
-        total_seconds = sum(
-            (e.completed_at - e.started_at).total_seconds()
-            for e in completed
-        )
-        avg_seconds = total_seconds / len(completed)
-        if avg_seconds < 60:
-            return f"{int(avg_seconds)}s"
-        elif avg_seconds < 3600:
-            return f"{int(avg_seconds / 60)}m"
+        s = self.avg_duration_seconds
+        if s < 60:
+            return f"{int(s)}s"
+        elif s < 3600:
+            return f"{int(s / 60)}m"
         else:
-            return f"{int(avg_seconds / 3600)}h"
+            return f"{int(s / 3600)}h"
 
     def to_dict(self) -> dict:
         return {

@@ -44,6 +44,24 @@ def apply_migrations():
                     print(f"Error checking/adding column: {e}")
                 conn.rollback()
 
+        print("Checking if 'playbooks' table needs denormalized stats columns...")
+        with db.engine.connect() as conn:
+            for col, definition in [
+                ("run_count", "INTEGER NOT NULL DEFAULT 0"),
+                ("last_run_at", "TIMESTAMP"),
+                ("avg_duration_seconds", "FLOAT"),
+            ]:
+                try:
+                    conn.execute(text(f"ALTER TABLE playbooks ADD COLUMN {col} {definition};"))
+                    conn.commit()
+                    print(f"Successfully added '{col}' column to 'playbooks' table.")
+                except ProgrammingError as e:
+                    if "already exists" in str(e) or "DuplicateColumn" in str(e):
+                        print(f"'{col}' column already exists on 'playbooks' table. Skipping.")
+                    else:
+                        print(f"Error adding column '{col}': {e}")
+                    conn.rollback()
+
 
 if __name__ == "__main__":
     apply_migrations()

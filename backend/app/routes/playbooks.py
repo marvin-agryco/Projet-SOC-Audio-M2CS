@@ -14,6 +14,20 @@ from app.models.playbook import (
 playbooks_bp = Blueprint("playbooks", __name__)
 
 
+def _update_avg_duration(execution):
+    """Recompute playbook.avg_duration_seconds using incremental running average."""
+    pb = execution.playbook
+    if not execution.completed_at or not execution.started_at:
+        return
+    duration = (execution.completed_at - execution.started_at).total_seconds()
+    count = pb.run_count or 1
+    if pb.avg_duration_seconds is None:
+        pb.avg_duration_seconds = duration
+    else:
+        # Incremental average: new_avg = old_avg + (new_val - old_avg) / count
+        pb.avg_duration_seconds = pb.avg_duration_seconds + (duration - pb.avg_duration_seconds) / count
+
+
 # ============== PLAYBOOK CRUD ==============
 
 
@@ -212,6 +226,9 @@ def execute_playbook(playbook_id):
         steps_data=steps_data,
         current_step=0,
     )
+    # Update denormalized stats
+    playbook.run_count = (playbook.run_count or 0) + 1
+    playbook.last_run_at = datetime.utcnow()
     db.session.add(execution)
     db.session.commit()
 
@@ -289,6 +306,7 @@ def update_execution_step(execution_id, step_index):
     if all_done:
         execution.status = ExecutionStatus.COMPLETED
         execution.completed_at = datetime.utcnow()
+        _update_avg_duration(execution)
 
     db.session.commit()
     return jsonify(execution.to_dict())
@@ -330,6 +348,7 @@ def complete_execution(execution_id):
     execution.status = ExecutionStatus.COMPLETED
     execution.completed_at = datetime.utcnow()
     execution.result = data.get("result")
+    _update_avg_duration(execution)
 
     db.session.commit()
     return jsonify(execution.to_dict())

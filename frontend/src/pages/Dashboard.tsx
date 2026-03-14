@@ -58,8 +58,7 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
   const [sourcePanelOpen, setSourcePanelOpen] = useState(false)
 
   const loadData = useCallback(async (
-    currentTimeRange: TimeRange = timeRange, 
-    currentHeatmapDays = heatmapDays,
+    currentTimeRange: TimeRange = timeRange,
     currentTimeSlice = timeSlice
   ) => {
     try {
@@ -69,23 +68,28 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
         fetchEventsParams.end_time = currentTimeSlice.end
       }
 
-      const [statsData, trendsData, eventsData, heatmapResult] = await Promise.all([
+      const [statsData, trendsData, eventsData] = await Promise.all([
         fetchDashboardStats(),
         fetchDashboardTrendsWithRange(currentTimeRange),
         fetchEvents(fetchEventsParams),
-        fetchDashboardHeatmap(currentHeatmapDays),
       ])
       setStats(statsData)
       setTrends(trendsData)
       setCriticalAlerts(eventsData.events || [])
-      setHeatmapData(heatmapResult.heatmap || [])
       setRefreshCounter((c: number) => c + 1)
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
     } finally {
       setLoading(false)
     }
-  }, [timeRange, heatmapDays, timeSlice])
+  }, [timeRange, timeSlice])
+
+  // Heatmap has its own independent fetch — only re-runs when heatmapDays changes
+  useEffect(() => {
+    fetchDashboardHeatmap(heatmapDays)
+      .then((result: any) => setHeatmapData(result.heatmap || []))
+      .catch((err: any) => console.error('Failed to load heatmap:', err))
+  }, [heatmapDays])
 
   useEffect(() => {
     loadData()

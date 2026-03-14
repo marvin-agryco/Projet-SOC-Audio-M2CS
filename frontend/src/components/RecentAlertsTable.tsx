@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { ChevronDown, User, Eye, UserCheck, Ban } from 'lucide-react'
 import clsx from 'clsx'
 import { Severity, Analyst } from '../types'
@@ -77,9 +77,12 @@ export default function RecentAlertsTable({
     }, [])
 
     // Filter alerts if source filter is active
-    const displayedAlerts = filteredSource
-        ? alerts.filter((a) => a.sourceKey === filteredSource || a.source === filterLabel)
-        : alerts
+    const displayedAlerts = useMemo(
+        () => filteredSource
+            ? alerts.filter((a) => a.sourceKey === filteredSource || a.source === filterLabel)
+            : alerts,
+        [alerts, filteredSource, filterLabel]
+    )
 
     const handleRowClick = (alertId: string, e: React.MouseEvent) => {
         // Don't trigger row click if clicking on assignee dropdown
