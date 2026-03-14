@@ -54,6 +54,7 @@ function AppRoutes() {
               <Layout>
                 <Routes>
                   <Route path="/" element={<Dashboard realtimeEvents={realtimeEvents} />} />
+                  <Route path="/dashboard" element={<Navigate to="/" replace />} />
                   <Route path="/events" element={<Events />} />
                   <Route path="/alerts" element={<Alerts />} />
                   <Route path="/incidents" element={<Incidents />} />
