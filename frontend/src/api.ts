@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { SecurityEvent, AlertRule, DashboardStats, SiteSummary, Endpoint, AlertComment, Analyst, Playbook, PlaybookExecution, GLPIAsset, Incident, HeatmapEntry, TopIP, SourceDetail } from './types'
+import { SecurityEvent, AlertRule, DashboardStats, SiteSummary, Endpoint, AlertComment, Analyst, Playbook, PlaybookExecution, GLPIAsset, Incident, HeatmapEntry, TopIP, SourceDetail, TriageBrief } from './types'
 
 // ── Module-level client cache ─────────────────────────────────────────────────
 // Survives React component unmounts — data persists for the lifetime of the SPA
@@ -286,5 +286,44 @@ export async function abortExecution(id: string): Promise<PlaybookExecution> {
 
 export async function completeExecution(id: string, result?: string): Promise<PlaybookExecution> {
   const { data } = await api.post(`/playbook-executions/${id}/complete`, { result })
+  return data
+}
+
+// ============== INCIDENTS (create) ==============
+
+export async function createIncident(payload: {
+  title: string
+  severity: string
+  description?: string
+  assigned_to?: string
+}): Promise<Incident> {
+  const { data } = await api.post('/incidents', payload)
+  return data
+}
+
+// ============== AI TRIAGE ==============
+
+export async function fetchTriageBrief(incidentId: string): Promise<TriageBrief | null> {
+  const { data } = await api.get('/triage-briefs', { params: { incident_id: incidentId } })
+  return data  // null when no brief exists yet
+}
+
+export async function updateTriageBrief(
+  briefId: string,
+  payload: { action: 'accept' | 'edit' | 'dismiss'; notes?: string; analyst?: string }
+): Promise<TriageBrief> {
+  const { data } = await api.patch(`/triage-briefs/${briefId}`, payload)
+  return data
+}
+
+export async function retriageIncident(incidentId: string): Promise<TriageBrief> {
+  const { data } = await api.post(`/incidents/${incidentId}/retriage`)
+  return data
+}
+
+// ============== AI LOG EXPLAINER ==============
+
+export async function explainEvent(eventId: string): Promise<{ explanation: string }> {
+  const { data } = await api.post(`/events/${eventId}/explain`)
   return data
 }

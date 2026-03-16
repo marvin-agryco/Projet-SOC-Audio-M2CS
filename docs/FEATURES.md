@@ -415,15 +415,99 @@ All dashboard-facing components use `t()` for user-visible strings:
 
 ---
 
+## AI Triage Assistant (v1.8)
+
+### Automated Triage Brief Generation
+When an incident is created, a background Celery task automatically:
+1. Extracts up to 3 unique non-private source IPs from linked events
+2. Enriches each IP in parallel via VirusTotal + AbuseIPDB (skips on error/no key)
+3. Calls Qwen2.5:1.5B via local Ollama to generate a structured JSON brief
+4. Retries with a stricter prompt if the LLM returns non-JSON
+5. Emits a `triage_update` WebSocket event when ready (or failed)
+
+### TriageBriefPanel Component
+Mounted in the Incident detail panel — shows the brief as it progresses:
+- **Pending/Generating**: pulsing spinner + "Generating triage brief…" message
+- **Ready**: confidence meter (green ≥70%, amber 40–69%, red <40%), threat hypothesis, MITRE tactic chips (clickable → attack.mitre.org), recommended action, generation footer (model + seconds)
+- **Failed**: error message + Regenerate button
+- **Analyst actions**: Accept ✓ / Edit ✏ / Dismiss ✗ — recorded with reviewer name + timestamp
+- **Edit mode**: in-line textarea for analyst notes; saves to backend via PATCH
+
+### State Machine
+```
+POST /incidents → [PENDING] → [GENERATING] → [READY] → [ACCEPTED/EDITED/DISMISSED]
+                                          └──────────── [FAILED] ──→ Regenerate
+```
+
+### Backend
+- `triage_briefs` PostgreSQL table (UUID PK, JSONB for mitre_tactics + ip_enrichment)
+- `GET /api/triage-briefs?incident_id=` — most recent brief for an incident
+- `PATCH /api/triage-briefs/:id` — accept / edit (with notes) / dismiss
+- `POST /api/incidents/:id/retriage` — trigger a new brief (409 if already in-flight)
+- `POST /api/incidents` — create incident + auto-fire triage
+- Pure service layer (`triage_service.py`) — `extract_ips`, `enrich_ips` (ThreadPoolExecutor), `build_triage_prompt`, `parse_llm_response`
+- Prompt injection mitigation: log data wrapped in `[UNTRUSTED LOG DATA]` delimiter
+- Ollama retry: 3× on ConnectionError with 2s/4s/8s backoff
+
+### Infrastructure
+- `soc-ollama` Docker service (`ollama/ollama:latest`, port 11434, `ollama_data` volume)
+- Config: `OLLAMA_URL`, `OLLAMA_MODEL` (default `qwen2.5:1.5b`), `VT_API_KEY`, `ABUSEIPDB_API_KEY`
+
+### Tests
+- 32 unit tests (`tests/unit/test_triage_service.py`) — service pure functions
+- 22 integration tests (`tests/integration/test_triage_task.py`) — task pipeline + API routes
+
+---
+
+## Raw Log Explainer (v1.9.1)
+
+"Explain this log" button in the Event detail panel. One click calls the local LLM synchronously
+and renders a plain-English explanation inline — no Celery, no DB write, no new table.
+
+### How it works
+```
+User clicks "Explain this log"
+       │
+       └──► POST /api/events/:id/explain   (sync, timeout 30s)
+                    │
+                    ├── fetch event.raw_log + source + event_type
+                    ├── build_explain_prompt() — [UNTRUSTED LOG DATA] wrapper
+                    ├── POST http://ollama:11434/api/chat
+                    └── return {"explanation": "plain English text"}
+```
+
+### Prompt injection protection
+Raw log content is wrapped in `[UNTRUSTED LOG DATA]` / `[END UNTRUSTED LOG DATA]` delimiters
+(same pattern as the triage brief). If a log line contains "Ignore all previous instructions…",
+the model is instructed to treat that section as untrusted data, not as a directive.
+
+### UI
+- **Trigger**: "🪄 Explain this log" button appears below the raw_log block when an event has log content
+- **Loading**: button becomes "Explaining…" spinner while waiting (~4s)
+- **Result**: violet left-border callout box: `AI: An inbound TCP SYN packet from…`
+- **Reset**: explanation clears automatically when switching to a different event
+
+### Backend
+- `POST /api/events/:id/explain` — 15 lines in `events.py`; 503 on Ollama down, 504 on timeout
+- `build_explain_prompt()` in `triage_service.py` — truncates raw_log to 1000 chars
+- Falls back to `event.description` when `raw_log` is null; returns 400 if neither exists
+
+### Tests
+- 3 unit tests (`tests/unit/test_triage_service.py`) — prompt includes source/type/log, truncation, fallback
+- 5 integration tests (`tests/integration/test_explain_endpoint.py`) — 200, 400, 404, 503, 504
+
+---
+
 ## Planned Features (Roadmap)
 
-### v1.8 (Planned)
+### v1.9 (Planned)
+- [ ] IP Reputation Card — collapsible VT/AbuseIPDB scores panel in TriageBriefPanel (TODOS.md T1)
+- [ ] Playbook Suggestion Chip — MITRE→PlaybookCategory matching in TriageBriefPanel (TODOS.md T2)
 - [ ] Email notifications (SMTP integration)
 - [ ] Webhook notifications
 - [ ] Geolocation map for source IPs
 
 ### v2.0 (Planned)
-- [ ] Machine learning anomaly detection
 - [ ] Mobile responsive design
 - [ ] API rate limiting
 
@@ -441,3 +525,5 @@ All dashboard-facing components use `t()` for user-visible strings:
 | v1.5 | 2026-02 | SOC analyst UX: language consistency, trend color fix, alert grouping, FP quick action, IP OSINT actions, playbook integration |
 | v1.6 | 2026-02 | Internationalization: EN/FR language toggle with full translation coverage |
 | v1.7 | 2026-02 | Suricata IDS (4th source), ActivityHeatmap V3 (date-based, severity breakdown, click-to-filter), StatCard Mission Critical (sparklines, statusColor), light theme opacity fixes, Sources Health Panel, heartbeat-based health monitoring |
+| v1.8 | 2026-03 | AI Triage Assistant: TriageBrief model, Celery pipeline, IP enrichment (VT+AbuseIPDB), Ollama LLM, TriageBriefPanel with confidence meter + MITRE chips + accept/edit/dismiss |
+| v1.9.1 | 2026-03 | Raw Log Explainer: "Explain this log" button on every event, sync LLM call, [UNTRUSTED LOG DATA] prompt injection protection |

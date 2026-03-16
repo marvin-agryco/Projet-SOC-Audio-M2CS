@@ -62,6 +62,22 @@ def apply_migrations():
                         print(f"Error adding column '{col}': {e}")
                     conn.rollback()
 
+        # Backfill run_count from actual executions for pre-existing playbooks
+        print("Backfilling playbook run_count from execution history...")
+        with db.engine.connect() as conn:
+            try:
+                conn.execute(text(
+                    "UPDATE playbooks SET run_count = ("
+                    "  SELECT COUNT(*) FROM playbook_executions"
+                    "  WHERE playbook_executions.playbook_id = playbooks.id"
+                    ") WHERE run_count = 0;"
+                ))
+                conn.commit()
+                print("Backfilled playbook run_count.")
+            except Exception as e:
+                print(f"run_count backfill skipped: {e}")
+                conn.rollback()
+
 
 if __name__ == "__main__":
     apply_migrations()

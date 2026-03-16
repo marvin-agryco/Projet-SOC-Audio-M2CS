@@ -195,6 +195,31 @@ export interface Incident {
   resolved_at?: string
   events?: SecurityEvent[] // populated when fetching specific incident
 }
+// AI Triage types
+export type TriageBriefStatus =
+  | 'pending' | 'generating' | 'ready'
+  | 'accepted' | 'edited' | 'dismissed' | 'failed'
+
+export interface TriageBrief {
+  id: string
+  incident_id: string
+  status: TriageBriefStatus
+  threat_hypothesis: string | null
+  confidence: number | null          // 0-100
+  mitre_tactics: string[]
+  recommended_action: string | null
+  ip_enrichment: Record<string, unknown>
+  analyst_notes: string | null
+  analyst_action: 'accepted' | 'edited' | 'dismissed' | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  model_used: string
+  generation_seconds: number | null
+  error_message: string | null
+  generated_at: string | null
+  created_at: string
+}
+
 // Playbook types
 export type PlaybookStatus = 'active' | 'draft' | 'archived'
 export type PlaybookTrigger = 'manual' | 'alert_rule' | 'scheduled'

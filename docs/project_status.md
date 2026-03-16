@@ -169,10 +169,40 @@ None
 ### Not Yet Implemented
 - [ ] Email notification integration
 - [ ] Webhook notifications
-- [ ] Geolocation map (planned)
 
 ### Blocked ⛔
 None
+
+---
+
+## Current Milestone: Version 1.8 — AI Triage Assistant — COMPLETED
+
+### Completed ✓
+
+#### AI Triage Assistant (v1.8)
+- [x] **TriageBrief model** — `triage_briefs` table (UUID PK, JSONB mitre_tactics + ip_enrichment, 7-state enum, analyst fields)
+- [x] **Celery task** (`tasks_triage.py`) — PENDING → GENERATING → READY/FAILED pipeline with retry logic
+- [x] **IP enrichment** — VT + AbuseIPDB in parallel via `ThreadPoolExecutor(max_workers=6)`; `ipaddress.ip_address().is_private` for RFC-1918 filtering
+- [x] **LLM integration** — Ollama POST `/api/chat` with 3× ConnectionError retry (2s/4s/8s backoff); strict-prompt retry on JSON parse failure
+- [x] **Prompt injection mitigation** — `[UNTRUSTED LOG DATA]` delimiter in prompt template
+- [x] **API routes** (`routes/triage.py`) — GET brief by incident_id, PATCH accept/edit/dismiss, POST retriage (409 if in-flight)
+- [x] **POST /api/incidents** — create incident + auto-fire triage brief generation
+- [x] **WebSocket** — `triage_update` event emitted on brief completion/failure
+- [x] **TriageBriefPanel.tsx** — confidence meter, MITRE chips (→ attack.mitre.org), analyst actions, edit mode, generation footer, regenerate button; WebSocket live updates
+- [x] **Docker** — `soc-ollama` service + `ollama_data` volume in `docker-compose.yml`
+- [x] **Tests** — 32 unit tests (service) + 22 integration tests (task + routes), all passing
+
+
+---
+
+## Current Milestone: Version 1.9.1 — Raw Log Explainer — COMPLETED
+
+### Completed ✓
+
+- [x] **`build_explain_prompt()`** in `triage_service.py` — `[UNTRUSTED LOG DATA]` wrapper, 1000-char truncation, fallback to description
+- [x] **`POST /api/events/:id/explain`** — sync Ollama call (30s timeout), typed 503/504 error responses
+- [x] **Frontend** — "Explain this log" button in Event detail panel, spinner, violet AI callout box, state reset on event switch
+- [x] **Tests** — 3 unit + 5 integration (200, 400, 404, 503, 504), all passing
 
 ---
 
@@ -185,4 +215,6 @@ None
 - 2026-02-26: **V1.4 COMPLETED** — Dashboard analytics: trend indicators (% change), severity trend chart, activity heatmap, top source IPs widget, quick actions (table + modal), degraded endpoint tooltips, live feed animation, interactive donut chart.
 - 2026-02-26: **V1.5 COMPLETED** — SOC analyst UX: language consistency (full English), trend color fix, alert grouping, FP quick action, IP OSINT actions (Whois/VT/Block), playbook integration on alerts.
 - 2026-02-27: **V1.6 COMPLETED** — Internationalization: EN/FR language toggle in header, LanguageContext provider, translations dictionary (~150 keys), full component coverage, locale-aware formatting, localStorage persistence.
+- 2026-03-16: **V1.9.1 COMPLETED** — Raw Log Explainer: sync LLM endpoint on events, [UNTRUSTED LOG DATA] prompt injection protection, 8 new tests passing.
+- 2026-03-14: **V1.8 COMPLETED** — AI Triage Assistant: TriageBrief model + Celery task (VT/AbuseIPDB enrichment + Ollama LLM), TriageBriefPanel React component (confidence meter, MITRE chips, accept/edit/dismiss), Ollama Docker service, 54 new tests all passing.
 - 2026-02-28: **V1.7 COMPLETED** — Suricata IDS as 4th event source, ActivityHeatmap V3 (date-based grid, severity breakdown, click-to-filter, 7d/30d toggle), StatCard Mission Critical redesign (sparklines, statusColor, subValue), Events filter cleanup, light theme opacity variant fixes. Branch `fill-spaceV3` merged into master.

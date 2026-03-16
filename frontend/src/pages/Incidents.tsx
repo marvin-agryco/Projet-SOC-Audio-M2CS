@@ -7,6 +7,7 @@ import { Incident, IncidentStatus } from '../types'
 import SeverityBadge from '../components/SeverityBadge'
 import StatusBadge from '../components/StatusBadge'
 import CustomSelect from '../components/CustomSelect'
+import TriageBriefPanel from '../components/TriageBriefPanel'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -394,6 +395,12 @@ export default function Incidents() {
                 </div>
               </div>
             )}
+
+            {/* AI Triage Brief */}
+            <TriageBriefPanel
+              incidentId={selectedIncident.id}
+              analystName={user?.username}
+            />
           </div>
         </div>
       )}

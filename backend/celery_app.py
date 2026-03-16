@@ -5,7 +5,7 @@ celery = Celery(
     'soc_dashboard',
     broker=Config.REDIS_URL,
     backend=Config.REDIS_URL,
-    include=['app.tasks']
+    include=['app.tasks', 'app.tasks_triage']
 )
 
 celery.conf.update(

@@ -6,6 +6,32 @@ from app.models import Incident, IncidentStatus, IncidentSeverity, Event
 incidents_bp = Blueprint("incidents", __name__)
 
 
+@incidents_bp.route("/incidents", methods=["POST"])
+def create_incident():
+    """Create a new incident and fire AI triage."""
+    from app.models.triage import TriageBrief
+
+    data = request.get_json()
+    if not data or 'title' not in data or 'severity' not in data:
+        return jsonify({"error": "Missing required fields: title, severity"}), 400
+
+    try:
+        incident = Incident.from_dict(data)
+        db.session.add(incident)
+        db.session.flush()  # obtain incident.id before creating the brief
+        brief = TriageBrief(incident_id=incident.id)
+        db.session.add(brief)
+        db.session.commit()
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+
+    from app.tasks_triage import run_triage
+    run_triage.delay(str(incident.id))
+
+    return jsonify(incident.to_dict()), 201
+
+
 @incidents_bp.route("/incidents", methods=["GET"])
 def list_incidents():
     """List all incidents with optional filtering and pagination."""

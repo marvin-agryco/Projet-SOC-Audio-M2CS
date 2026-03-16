@@ -95,6 +95,18 @@ services:
       - ./backend:/app
     command: celery -A celery_app.celery beat --loglevel=info
 
+  # Ollama — local LLM inference for AI Triage (model: qwen2.5:1.5b)
+  # One-time setup: docker exec soc-ollama ollama pull qwen2.5:1.5b
+  ollama:
+    image: ollama/ollama:latest
+    container_name: soc-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - default
+
   # React Frontend
   frontend:
     build:
@@ -118,3 +130,4 @@ networks:
 
 volumes:
   postgres_data:
+  ollama_data:

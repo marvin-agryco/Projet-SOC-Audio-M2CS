@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useRole } from '../context/RoleContext'
-import { Search, Filter, ChevronLeft, ChevronRight, LayoutList, LayoutGrid } from 'lucide-react'
-import { fetchEvents, updateEventStatus } from '../api'
+import { Search, Filter, ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Wand2, Loader2 } from 'lucide-react'
+import { fetchEvents, updateEventStatus, explainEvent } from '../api'
 import { SecurityEvent, EventStatus } from '../types'
 import EventCard from '../components/EventCard'
 import SeverityBadge from '../components/SeverityBadge'
@@ -23,6 +23,9 @@ export default function Events() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [selectedEvent, setSelectedEvent] = useState<SecurityEvent | null>(null)
+  const [explanation, setExplanation] = useState<string | null>(null)
+  const [explaining, setExplaining] = useState(false)
+  const [explainError, setExplainError] = useState<string | null>(null)
 
   // Filters — pre-populated from navigation state (e.g. from endpoint "View Logs")
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
@@ -215,7 +218,7 @@ export default function Events() {
               <EventCard
                 key={event.id}
                 event={event}
-                onClick={() => setSelectedEvent(event)}
+                onClick={() => { setSelectedEvent(event); setExplanation(null); setExplainError(null) }}
               />
             ))}
           </div>
@@ -295,6 +298,41 @@ export default function Events() {
                 <pre className="text-xs bg-gray-900 p-2 rounded overflow-x-auto">
                   {selectedEvent.raw_log}
                 </pre>
+                {!explanation && (
+                  <button
+                    onClick={async () => {
+                      setExplaining(true)
+                      setExplainError(null)
+                      try {
+                        const result = await explainEvent(selectedEvent.id)
+                        setExplanation(result.explanation)
+                      } catch {
+                        setExplainError('Could not generate explanation')
+                      } finally {
+                        setExplaining(false)
+                      }
+                    }}
+                    disabled={explaining}
+                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg mt-2 transition-colors disabled:opacity-50"
+                    style={{ backgroundColor: 'rgb(139 92 246 / 0.15)', color: '#a78bfa' }}
+                  >
+                    {explaining
+                      ? <><Loader2 className="w-3 h-3 animate-spin" /> Explaining...</>
+                      : <><Wand2 className="w-3 h-3" /> Explain this log</>}
+                  </button>
+                )}
+                {explanation && (
+                  <div
+                    className="mt-2 p-2.5 rounded-lg text-xs leading-relaxed"
+                    style={{ backgroundColor: 'rgb(139 92 246 / 0.08)', borderLeft: '2px solid #6366f1', color: 'var(--color-text-primary)' }}
+                  >
+                    <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>AI: </span>
+                    {explanation}
+                  </div>
+                )}
+                {explainError && (
+                  <p className="text-xs mt-1 text-red-400">{explainError}</p>
+                )}
               </div>
             )}
 

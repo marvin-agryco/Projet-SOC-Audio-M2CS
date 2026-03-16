@@ -80,6 +80,7 @@ def create_app(config_name: str = None) -> Flask:
     from app.routes.playbooks import playbooks_bp
     from app.routes.assets import assets_bp
     from app.routes.incidents import incidents_bp
+    from app.routes.triage import triage_bp
 
     app.register_blueprint(events_bp, url_prefix="/api")
     app.register_blueprint(dashboard_bp, url_prefix="/api")
@@ -90,6 +91,7 @@ def create_app(config_name: str = None) -> Flask:
     app.register_blueprint(playbooks_bp, url_prefix="/api")
     app.register_blueprint(assets_bp, url_prefix="/api")
     app.register_blueprint(incidents_bp, url_prefix="/api")
+    app.register_blueprint(triage_bp, url_prefix="/api")
 
     # Health check
     @app.route("/health")

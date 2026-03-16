@@ -1,3 +1,4 @@
+import requests as req
 from flask import Blueprint, request, jsonify
 from sqlalchemy import desc
 from app import db
@@ -132,6 +133,38 @@ def delete_event(event_id):
     db.session.delete(event)
     db.session.commit()
     return '', 204
+
+
+@events_bp.route('/events/<uuid:event_id>/explain', methods=['POST'])
+def explain_event(event_id):
+    """Call the local LLM to explain a raw log entry in plain English."""
+    from app.services.triage_service import build_explain_prompt
+    from flask import current_app
+
+    event = Event.query.get_or_404(event_id)
+    if not event.raw_log and not event.description:
+        return jsonify({'error': 'No log content to explain'}), 400
+
+    prompt = build_explain_prompt(event.to_dict())
+    ollama_url = current_app.config.get('OLLAMA_URL', 'http://ollama:11434')
+    model = current_app.config.get('OLLAMA_MODEL', 'qwen2.5:1.5b')
+
+    try:
+        resp = req.post(
+            f'{ollama_url}/api/chat',
+            json={'model': model, 'messages': [{'role': 'user', 'content': prompt}], 'stream': False},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        explanation = resp.json()['message']['content'].strip()
+    except req.exceptions.Timeout:
+        return jsonify({'error': 'LLM timed out — try again'}), 504
+    except req.exceptions.ConnectionError:
+        return jsonify({'error': 'LLM service unavailable'}), 503
+    except Exception as e:
+        return jsonify({'error': f'Failed to generate explanation: {str(e)[:100]}'}), 500
+
+    return jsonify({'explanation': explanation})
 
 
 # In-memory storage for comments (for demo purposes)

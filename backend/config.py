@@ -37,6 +37,12 @@ class Config:
     WAZUH_API_USER = os.getenv("WAZUH_API_USER", "wazuh")
     WAZUH_API_PASSWORD = os.getenv("WAZUH_API_PASSWORD", "wazuh")
 
+    # AI Triage
+    OLLAMA_URL        = os.getenv("OLLAMA_URL", "http://ollama:11434")
+    OLLAMA_MODEL      = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
+    VT_API_KEY        = os.getenv("VT_API_KEY", "")
+    ABUSEIPDB_API_KEY = os.getenv("ABUSEIPDB_API_KEY", "")
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""

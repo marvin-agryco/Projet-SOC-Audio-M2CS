@@ -1,4 +1,5 @@
 from app.models.event import Event, EventStatus, EventSeverity, EventSource
+from app.models.triage import TriageBrief, TriageBriefStatus
 from app.models.alert_rule import AlertRule, AlertAction
 from app.models.user import User, UserRole
 from app.models.incident import Incident, IncidentStatus, IncidentSeverity
@@ -29,4 +30,6 @@ __all__ = [
     "Incident",
     "IncidentStatus",
     "IncidentSeverity",
+    "TriageBrief",
+    "TriageBriefStatus",
 ]
