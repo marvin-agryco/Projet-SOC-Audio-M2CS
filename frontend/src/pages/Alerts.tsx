@@ -3,38 +3,12 @@ import { Plus, Trash2, Power, PowerOff, Edit2, Copy, AlertTriangle, Shield, Mail
 import { fetchAlertRules, createAlertRule, deleteAlertRule, toggleAlertRule, updateAlertRule } from '../api'
 import { AlertRule } from '../types'
 import SeverityBadge from '../components/SeverityBadge'
+import AlertRuleDetailPanel from '../components/AlertRuleDetailPanel'
 import { useRole } from '../context/RoleContext'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import clsx from 'clsx'
-
-// Event sources matching the backend
-const EVENT_SOURCES = [
-  { value: 'any', label: 'Any Source' },
-  { value: 'firewall', label: 'Firewall' },
-  { value: 'ids', label: 'IDS' },
-  { value: 'endpoint', label: 'Endpoint' },
-  { value: 'active_directory', label: 'Active Directory' },
-  { value: 'email', label: 'Email Gateway' },
-  { value: 'application', label: 'Application' },
-  { value: 'network', label: 'Network' },
-]
-
-// Common event types
-const EVENT_TYPES = [
-  { value: 'any', label: 'Any Event Type' },
-  { value: 'auth_failure', label: 'Authentication Failure' },
-  { value: 'auth_success', label: 'Authentication Success' },
-  { value: 'malware_detected', label: 'Malware Detected' },
-  { value: 'port_scan', label: 'Port Scan' },
-  { value: 'brute_force', label: 'Brute Force Attack' },
-  { value: 'data_exfiltration', label: 'Data Exfiltration' },
-  { value: 'policy_violation', label: 'Policy Violation' },
-  { value: 'config_change', label: 'Configuration Change' },
-  { value: 'privilege_escalation', label: 'Privilege Escalation' },
-  { value: 'suspicious_process', label: 'Suspicious Process' },
-  { value: 'network_anomaly', label: 'Network Anomaly' },
-]
+import { EVENT_SOURCES, EVENT_TYPES, formatCondition as fmtCondition, formatTimeframe } from '../utils/alertRuleFormatters'
 
 // Rule templates for quick setup
 const RULE_TEMPLATES = [
@@ -83,6 +57,8 @@ export default function Alerts() {
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null)
   const [showTemplates, setShowTemplates] = useState(false)
   const [expandedRules, setExpandedRules] = useState<Set<string>>(new Set())
+  const [detailRule, setDetailRule] = useState<AlertRule | null>(null)
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false)
 
   useEffect(() => {
     loadRules()
@@ -178,38 +154,6 @@ export default function Alerts() {
       newExpanded.add(id)
     }
     setExpandedRules(newExpanded)
-  }
-
-  // Format condition for display
-  function formatCondition(condition: any): string {
-    const parts: string[] = []
-
-    if (condition.event_type && condition.event_type !== 'any') {
-      const eventType = EVENT_TYPES.find(e => e.value === condition.event_type)
-      parts.push(`Event: ${eventType?.label || condition.event_type}`)
-    }
-
-    if (condition.source && condition.source !== 'any') {
-      const source = EVENT_SOURCES.find(s => s.value === condition.source)
-      parts.push(`Source: ${source?.label || condition.source}`)
-    }
-
-    if (condition.count) {
-      parts.push(`Count >= ${condition.count}`)
-    }
-
-    if (condition.timeframe) {
-      parts.push(`in ${formatTimeframe(condition.timeframe)}`)
-    }
-
-    return parts.length > 0 ? parts.join(' | ') : 'Any event'
-  }
-
-  function formatTimeframe(tf: string): string {
-    const match = tf.match(/(\d+)([mh])/)
-    if (!match) return tf
-    const [, num, unit] = match
-    return unit === 'm' ? `${num} minutes` : `${num} hour${parseInt(num) > 1 ? 's' : ''}`
   }
 
   function getActionIcon(action: string) {
@@ -417,8 +361,11 @@ export default function Alerts() {
           {rules.map((rule) => (
             <div
               key={rule.id}
+              onClick={() => { setDetailRule(rule); setDetailPanelOpen(true) }}
               className={clsx(
-                'glass-card overflow-hidden transition-all',
+                'glass-card overflow-hidden transition-all cursor-pointer',
+                'hover:ring-1 hover:ring-slate-600/60',
+                detailRule?.id === rule.id && detailPanelOpen && 'ring-1 ring-blue-500/50',
                 !rule.enabled && 'opacity-60'
               )}
             >
@@ -453,7 +400,7 @@ export default function Alerts() {
                       <div className="flex items-center gap-2">
                         <span style={{ color: 'var(--color-text-muted)' }}>Condition:</span>
                         <span className="px-2 py-0.5 rounded text-blue-400" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
-                          {formatCondition(rule.condition)}
+                          {fmtCondition(rule.condition as Record<string, unknown>)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -476,7 +423,7 @@ export default function Alerts() {
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => toggleRuleExpand(rule.id)}
+                      onClick={(e) => { e.stopPropagation(); toggleRuleExpand(rule.id) }}
                       className="p-2 rounded-lg transition-colors hover:bg-slate-700/50"
                       title="Expand details"
                     >
@@ -489,14 +436,14 @@ export default function Alerts() {
                     {canManageRules && (
                       <>
                         <button
-                          onClick={() => handleEdit(rule)}
+                          onClick={(e) => { e.stopPropagation(); handleEdit(rule) }}
                           className="p-2 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 transition-colors"
                           title="Edit"
                         >
                           <Edit2 className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleDuplicate(rule)}
+                          onClick={(e) => { e.stopPropagation(); handleDuplicate(rule) }}
                           className="p-2 rounded-lg bg-slate-600/20 hover:bg-slate-600/30 transition-colors"
                           style={{ color: 'var(--color-text-muted)' }}
                           title="Duplicate"
@@ -504,7 +451,7 @@ export default function Alerts() {
                           <Copy className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleToggle(rule.id)}
+                          onClick={(e) => { e.stopPropagation(); handleToggle(rule.id) }}
                           className={clsx(
                             'p-2 rounded-lg transition-colors',
                             rule.enabled
@@ -520,7 +467,7 @@ export default function Alerts() {
                           )}
                         </button>
                         <button
-                          onClick={() => handleDelete(rule.id)}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(rule.id) }}
                           className="p-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-colors"
                           title="Delete"
                         >
@@ -597,6 +544,17 @@ export default function Alerts() {
           ))}
         </div>
       )}
+
+      <AlertRuleDetailPanel
+        rule={detailRule}
+        isOpen={detailPanelOpen}
+        onClose={() => setDetailPanelOpen(false)}
+        onToggle={handleToggle}
+        onEdit={(rule) => { handleEdit(rule); setDetailPanelOpen(false) }}
+        onDelete={handleDelete}
+        onDuplicate={(rule) => { handleDuplicate(rule); setDetailPanelOpen(false) }}
+        canManage={canManageRules}
+      />
     </div>
   )
 }

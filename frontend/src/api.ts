@@ -174,6 +174,7 @@ export function fetchSourceDetails(): Promise<{ sources: Record<string, SourceDe
 // ============== INCIDENTS ==============
 
 export async function fetchIncidents(params?: {
+  alert_rule_id?: string
   status?: string
   severity?: string
   assigned_to?: string

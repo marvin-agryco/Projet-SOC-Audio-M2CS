@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useAuth } from './AuthContext'
 
 export type JwtRole = 'admin' | 'analyst' | 'supervisor'
@@ -18,8 +18,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const baseRole: JwtRole = (user?.role as JwtRole) ?? 'analyst'
 
-  // Admins can switch effective role for demos; others are locked to their JWT role
+  // Admins can switch effective role for demos; others are locked to their JWT role.
+  // Initialize to baseRole; also sync when user logs in (baseRole was 'analyst' on first
+  // render if auth hadn't resolved yet, now corrected to the actual JWT role).
   const [effectiveRole, setEffectiveRoleState] = useState<JwtRole>(baseRole)
+  useEffect(() => {
+    setEffectiveRoleState(baseRole)
+  }, [baseRole])
 
   function setEffectiveRole(role: JwtRole) {
     if (baseRole === 'admin') {

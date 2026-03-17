@@ -1,3 +1,4 @@
+import uuid as _uuid
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from app import db
@@ -62,6 +63,13 @@ def list_incidents():
             query = query.filter(Incident.assigned_to.is_(None))
         else:
             query = query.filter(Incident.assigned_to == assigned_to)
+
+    alert_rule_id = request.args.get("alert_rule_id")
+    if alert_rule_id:
+        try:
+            query = query.filter(Incident.alert_rule_id == _uuid.UUID(alert_rule_id))
+        except ValueError:
+            return jsonify({"error": "Invalid alert_rule_id format"}), 400
 
     paginated = query.order_by(Incident.updated_at.desc()).paginate(
         page=page, per_page=per_page, error_out=False
