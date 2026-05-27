@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Power, PowerOff, Edit2, Copy, AlertTriangle, Shield, Mail, Webhook, FileText, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Trash2, Power, PowerOff, Edit2, Copy, AlertTriangle, Shield, Mail, Webhook, FileText, X, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import { fetchAlertRules, createAlertRule, deleteAlertRule, toggleAlertRule, updateAlertRule } from '../api'
 import { AlertRule } from '../types'
 import SeverityBadge from '../components/SeverityBadge'
 import AlertRuleDetailPanel from '../components/AlertRuleDetailPanel'
 import { useRole } from '../context/RoleContext'
-import { fmtDateTime } from '../utils/dateFormat'
+import { fmtDateTime, timeAgo } from '../utils/dateFormat'
 import clsx from 'clsx'
 import { EVENT_SOURCES, EVENT_TYPES, formatCondition as fmtCondition, formatTimeframe } from '../utils/alertRuleFormatters'
 
@@ -413,9 +413,23 @@ export default function Alerts() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span style={{ color: 'var(--color-text-muted)' }}>Triggered:</span>
-                        <span style={{ color: 'var(--color-text-primary)' }}>
-                          {rule.trigger_count} times
+                        <span className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                          {rule.trigger_count}x
                         </span>
+                        {rule.last_triggered ? (
+                          <span
+                            className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                            title={fmtDateTime(rule.last_triggered)}
+                          >
+                            <Clock size={11} />
+                            {timeAgo(rule.last_triggered)}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-slate-700/50 text-slate-500">
+                            <Clock size={11} />
+                            never
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

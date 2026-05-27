@@ -8,7 +8,7 @@ import SeverityBadge from '../components/SeverityBadge'
 import StatusBadge from '../components/StatusBadge'
 import CustomSelect from '../components/CustomSelect'
 import TriageBriefPanel from '../components/TriageBriefPanel'
-import { fmtTime, fmtDateTime, fmtDateShort } from '../utils/dateFormat'
+import { fmtDateTime, fmtDateShort, isToday, timeAgo } from '../utils/dateFormat'
 
 export default function Incidents() {
   const { user } = useAuth()
@@ -220,19 +220,25 @@ export default function Incidents() {
                   {incident.title}
                 </h3>
                 
-                <div className="flex items-center gap-4 text-xs mt-4" style={{ color: 'var(--color-text-muted)' }}>
-                  <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-3 text-xs mt-4">
+                  <span className="flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
                     <ShieldAlert className="w-3.5 h-3.5" />
                     {incident.event_count} Events
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" />
-                    {fmtTime(incident.created_at)}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" />
-                    {fmtDateShort(incident.created_at)}
-                  </div>
+                  </span>
+                  {isToday(incident.created_at) ? (
+                    <span
+                      className="flex items-center gap-1 px-2 py-0.5 rounded font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                      title={fmtDateTime(incident.created_at)}
+                    >
+                      <Clock className="w-3 h-3" />
+                      {timeAgo(incident.created_at)}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-700/50" style={{ color: 'var(--color-text-muted)' }}>
+                      <Calendar className="w-3 h-3" />
+                      {fmtDateShort(incident.created_at)}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -308,12 +314,32 @@ export default function Incidents() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Created At</label>
-                <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{fmtDateTime(selectedIncident.created_at)}</p>
+                {isToday(selectedIncident.created_at) ? (
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-sm font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                    title={fmtDateTime(selectedIncident.created_at)}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    {timeAgo(selectedIncident.created_at)}
+                  </span>
+                ) : (
+                  <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{fmtDateTime(selectedIncident.created_at)}</p>
+                )}
               </div>
               {selectedIncident.updated_at && (
                 <div>
                   <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Last Updated</label>
-                  <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{fmtDateTime(selectedIncident.updated_at)}</p>
+                  {isToday(selectedIncident.updated_at) ? (
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-sm font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                      title={fmtDateTime(selectedIncident.updated_at)}
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      {timeAgo(selectedIncident.updated_at)}
+                    </span>
+                  ) : (
+                    <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{fmtDateTime(selectedIncident.updated_at)}</p>
+                  )}
                 </div>
               )}
             </div>
@@ -386,7 +412,9 @@ export default function Incidents() {
                     <div key={event.id} className="p-2 rounded-lg border text-xs" style={{ backgroundColor: 'var(--color-bg-tertiary)', borderColor: 'var(--color-border)' }}>
                       <div className="flex justify-between items-start mb-1">
                         <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{event.event_type}</span>
-                        <span style={{ color: 'var(--color-text-muted)' }}>{fmtTime(event.timestamp)}</span>
+                        <span style={{ color: 'var(--color-text-muted)' }}>
+                          {isToday(event.timestamp) ? timeAgo(event.timestamp) : fmtDateShort(event.timestamp)}
+                        </span>
                       </div>
                       <p className="opacity-80 line-clamp-2" style={{ color: 'var(--color-text-muted)' }}>{event.description}</p>
                     </div>
