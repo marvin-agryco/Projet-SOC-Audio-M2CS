@@ -8,8 +8,7 @@ import SeverityBadge from '../components/SeverityBadge'
 import StatusBadge from '../components/StatusBadge'
 import CustomSelect from '../components/CustomSelect'
 import TriageBriefPanel from '../components/TriageBriefPanel'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
+import { fmtTime, fmtDateTime, fmtDateShort } from '../utils/dateFormat'
 
 export default function Incidents() {
   const { user } = useAuth()
@@ -228,11 +227,11 @@ export default function Incidents() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5" />
-                    {format(new Date(incident.created_at), 'HH:mm:ss')}
+                    {fmtTime(incident.created_at)}
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5" />
-                    {format(new Date(incident.created_at), 'MM/dd')}
+                    {fmtDateShort(incident.created_at)}
                   </div>
                 </div>
               </div>
@@ -309,12 +308,12 @@ export default function Incidents() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Created At</label>
-                <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{format(new Date(selectedIncident.created_at), 'PPp', { locale: fr })}</p>
+                <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{fmtDateTime(selectedIncident.created_at)}</p>
               </div>
               {selectedIncident.updated_at && (
                 <div>
                   <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Last Updated</label>
-                  <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{format(new Date(selectedIncident.updated_at), 'PPp', { locale: fr })}</p>
+                  <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{fmtDateTime(selectedIncident.updated_at)}</p>
                 </div>
               )}
             </div>
@@ -387,7 +386,7 @@ export default function Incidents() {
                     <div key={event.id} className="p-2 rounded-lg border text-xs" style={{ backgroundColor: 'var(--color-bg-tertiary)', borderColor: 'var(--color-border)' }}>
                       <div className="flex justify-between items-start mb-1">
                         <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{event.event_type}</span>
-                        <span style={{ color: 'var(--color-text-muted)' }}>{format(new Date(event.timestamp), 'HH:mm:ss')}</span>
+                        <span style={{ color: 'var(--color-text-muted)' }}>{fmtTime(event.timestamp)}</span>
                       </div>
                       <p className="opacity-80 line-clamp-2" style={{ color: 'var(--color-text-muted)' }}>{event.description}</p>
                     </div>

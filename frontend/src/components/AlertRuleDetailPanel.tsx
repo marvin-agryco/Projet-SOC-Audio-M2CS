@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { X, Mail, Webhook, FileText, Power, PowerOff, Edit2, Copy, Trash2,
          AlertTriangle, CheckCircle, Clock, Activity, Shield, TrendingUp } from 'lucide-react'
 import clsx from 'clsx'
-import { format, formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns'
+import { fmtDate } from '../utils/dateFormat'
 import { AlertRule, Incident } from '../types'
 import { fetchIncidents } from '../api'
 import SeverityBadge from './SeverityBadge'
@@ -178,7 +179,7 @@ export default function AlertRuleDetailPanel({
               },
               {
                 label: 'Created',
-                value: format(new Date(rule.created_at), 'MMM d, yy'),
+                value: fmtDate(rule.created_at),
                 icon: Shield,
                 color: 'text-slate-400',
               },

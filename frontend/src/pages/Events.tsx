@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useRole } from '../context/RoleContext'
 import { Search, Filter, ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Wand2, Loader2 } from 'lucide-react'
-import { fetchEvents, updateEventStatus, explainEvent } from '../api'
+import { fetchEvents, updateEventStatus, explainEvent, deleteEvent } from '../api'
 import { SecurityEvent, EventStatus } from '../types'
 import EventCard from '../components/EventCard'
 import SeverityBadge from '../components/SeverityBadge'
@@ -10,8 +10,7 @@ import StatusBadge from '../components/StatusBadge'
 import CustomSelect from '../components/CustomSelect'
 import ExportButton from '../components/ExportButton'
 import { exportEventsToCSV, exportEventsReport, exportToJSON } from '../utils/export'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
+import { fmtDateTime } from '../utils/dateFormat'
 
 export default function Events() {
   const { canExport } = useRole()
@@ -65,6 +64,16 @@ export default function Events() {
     e.preventDefault()
     setPage(1)
     loadEvents()
+  }
+
+  async function handleDelete(eventId: string) {
+    try {
+      await deleteEvent(eventId)
+      setEvents(events.filter((e) => e.id !== eventId))
+      if (selectedEvent?.id === eventId) setSelectedEvent(null)
+    } catch (error) {
+      console.error('Failed to delete event:', error)
+    }
   }
 
   async function handleStatusChange(eventId: string, newStatus: EventStatus) {
@@ -215,11 +224,13 @@ export default function Events() {
         ) : (
           <div className={viewMode === 'grid' ? 'grid grid-cols-2 xl:grid-cols-4 gap-3' : 'space-y-2'}>
             {events.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onClick={() => { setSelectedEvent(event); setExplanation(null); setExplainError(null) }}
-              />
+              <div key={event.id} className="group">
+                <EventCard
+                  event={event}
+                  onClick={() => { setSelectedEvent(event); setExplanation(null); setExplainError(null) }}
+                  onDelete={(e) => { e.stopPropagation(); handleDelete(event.id) }}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -277,7 +288,7 @@ export default function Events() {
 
             <div>
               <label className="text-gray-400 text-sm">Timestamp</label>
-              <p>{format(new Date(selectedEvent.timestamp), 'PPpp', { locale: fr })}</p>
+              <p>{fmtDateTime(selectedEvent.timestamp)}</p>
             </div>
 
             {selectedEvent.site_id && (

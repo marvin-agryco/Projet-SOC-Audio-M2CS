@@ -91,6 +91,10 @@ export async function updateAlertRule(
   return data
 }
 
+export async function deleteEvent(id: string): Promise<void> {
+  await api.delete(`/events/${id}`)
+}
+
 export async function deleteAlertRule(id: string): Promise<void> {
   await api.delete(`/alerts/rules/${id}`)
 }

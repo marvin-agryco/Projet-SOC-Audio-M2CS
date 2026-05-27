@@ -5,8 +5,7 @@ import { AlertRule } from '../types'
 import SeverityBadge from '../components/SeverityBadge'
 import AlertRuleDetailPanel from '../components/AlertRuleDetailPanel'
 import { useRole } from '../context/RoleContext'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
+import { fmtDateTime } from '../utils/dateFormat'
 import clsx from 'clsx'
 import { EVENT_SOURCES, EVENT_TYPES, formatCondition as fmtCondition, formatTimeframe } from '../utils/alertRuleFormatters'
 
@@ -491,7 +490,7 @@ export default function Alerts() {
                         Created
                       </p>
                       <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                        {format(new Date(rule.created_at), 'PPp', { locale: fr })}
+                        {fmtDateTime(rule.created_at)}
                       </p>
                     </div>
                     <div>
@@ -500,7 +499,7 @@ export default function Alerts() {
                       </p>
                       <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
                         {rule.last_triggered
-                          ? format(new Date(rule.last_triggered), 'PPp', { locale: fr })
+                          ? fmtDateTime(rule.last_triggered)
                           : 'Never'}
                       </p>
                     </div>

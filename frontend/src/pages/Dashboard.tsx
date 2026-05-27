@@ -16,6 +16,7 @@ import TopSourceIPs from '../components/TopSourceIPs'
 import { ToastContainer, toast } from '../components/Toast'
 import { useLanguage } from '../context/LanguageContext'
 import clsx from 'clsx'
+import { fmtTime } from '../utils/dateFormat'
 
 interface DashboardProps {
   realtimeEvents: SecurityEvent[]
@@ -33,7 +34,7 @@ const SOURCE_COLORS: Record<string, string> = {
 
 export default function Dashboard({ realtimeEvents }: DashboardProps) {
   const navigate = useNavigate()
-  const { t, locale } = useLanguage()
+  const { t } = useLanguage()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [trends, setTrends] = useState<{
     hourly: Array<{ hour: string; count: number }>
@@ -192,11 +193,7 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
       alertName: e.description,
       source: e.site_id || formatSourceName(e.source),
       sourceKey: e.source,
-      time: new Date(e.timestamp).toLocaleTimeString(locale(), {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      }),
+      time: fmtTime(e.timestamp),
       assignee: e.assigned_to,
       count: 1,
     }))

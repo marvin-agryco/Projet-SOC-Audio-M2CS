@@ -63,6 +63,31 @@ function buildTimelineFromData(event: SecurityEvent, comments: AlertComment[]): 
       details: `${event.source} reported ${event.event_type}`,
     },
   ]
+
+  const wasUpdated = event.updated_at && event.updated_at !== event.timestamp &&
+    new Date(event.updated_at).getTime() > new Date(event.timestamp).getTime()
+
+  if (wasUpdated) {
+    if (event.assigned_to) {
+      entries.push({
+        id: 'assigned',
+        timestamp: event.updated_at!,
+        action: 'Assigned to analyst',
+        actor: 'System',
+        details: `Assigned to ${event.assigned_to}`,
+      })
+    }
+    if (event.status !== 'new') {
+      entries.push({
+        id: 'status-change',
+        timestamp: event.updated_at!,
+        action: `Status changed to ${event.status.replace('_', ' ')}`,
+        actor: event.assigned_to ?? 'Analyst',
+        details: null as unknown as string,
+      })
+    }
+  }
+
   const sorted = [...comments].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   )
@@ -75,7 +100,8 @@ function buildTimelineFromData(event: SecurityEvent, comments: AlertComment[]): 
       details: c.content,
     })
   }
-  return entries
+
+  return entries.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 }
 
 export default function AlertDetailModal({
@@ -434,8 +460,8 @@ export default function AlertDetailModal({
                       <div className="p-4 bg-slate-700/30 rounded-lg">
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-medium text-slate-200">{item.action}</span>
-                          <span className="text-xs text-slate-500">
-                            {new Date(item.timestamp).toLocaleString(locale())}
+                          <span className="text-sm text-slate-300">
+                            {new Date(item.timestamp).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}
                           </span>
                         </div>
                         <p className="text-sm text-slate-400">By: {item.actor}</p>
