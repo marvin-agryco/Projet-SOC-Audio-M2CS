@@ -290,3 +290,55 @@ body {
 /* ── Divide ── */
 [data-theme="light"] .divide-slate-700 > :not([hidden]) ~ :not([hidden]) { border-color: #e2e8f0; }
 [data-theme="light"] .divide-gray-700  > :not([hidden]) ~ :not([hidden]) { border-color: #e2e8f0; }
+
+/* ── Chronos slider (DateRangePicker time controls) ── */
+.chronos-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+.chronos-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+.chronos-slider::-moz-range-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+.chronos-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+  transition: transform 0.12s ease;
+}
+.chronos-slider::-webkit-slider-thumb:hover { transform: scale(1.18); }
+.chronos-slider:active::-webkit-slider-thumb { transform: scale(1.25); }
+.chronos-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+  transition: transform 0.12s ease;
+}
+.chronos-slider::-moz-range-thumb:hover { transform: scale(1.18); }
+[data-theme="light"] .chronos-slider,
+[data-theme="light"] .chronos-slider::-webkit-slider-runnable-track,
+[data-theme="light"] .chronos-slider::-moz-range-track {
+  background: rgba(15, 23, 42, 0.1);
+}

@@ -95,6 +95,49 @@ export async function deleteEvent(id: string): Promise<void> {
   await api.delete(`/events/${id}`)
 }
 
+export interface ExportFilters {
+  status?: string
+  severity?: string
+  source?: string
+  site_id?: string
+  search?: string
+  start?: string
+  end?: string
+  max_rows?: number
+}
+
+export interface ExportSummary {
+  total: number
+  by_severity: Record<string, number>
+  by_status: Record<string, number>
+  by_source: Record<string, number>
+  first_event: string | null
+  last_event: string | null
+  generated_at: string
+  filters: Record<string, string>
+}
+
+export async function fetchExportSummary(filters: ExportFilters): Promise<ExportSummary> {
+  const { data } = await api.get('/events/export/summary', { params: filters })
+  return data
+}
+
+export async function fetchEventsExport(filters: ExportFilters): Promise<SecurityEvent[]> {
+  const { data } = await api.get('/events/export', {
+    params: { ...filters, format: 'json' },
+  })
+  return data.events
+}
+
+export function buildExportCsvUrl(filters: ExportFilters): string {
+  const params = new URLSearchParams()
+  Object.entries(filters).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') params.append(k, String(v))
+  })
+  params.set('format', 'csv')
+  return `/api/events/export?${params.toString()}`
+}
+
 export async function deleteAlertRule(id: string): Promise<void> {
   await api.delete(`/alerts/rules/${id}`)
 }

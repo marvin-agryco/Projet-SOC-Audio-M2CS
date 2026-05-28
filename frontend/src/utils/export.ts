@@ -1,6 +1,11 @@
 import { SecurityEvent } from '../types'
 import html2pdf from 'html2pdf.js'
 
+// Inline SVG icons (replace emojis — emojis don't center inside flex boxes)
+const ICON_SHIELD = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 2 4 5v6.5c0 4.8 3.4 9.3 8 10.5 4.6-1.2 8-5.7 8-10.5V5l-8-3zm0 2.2 6 2.2v5.1c0 3.8-2.6 7.4-6 8.4-3.4-1-6-4.6-6-8.4V6.4l6-2.2z"/></svg>`
+const ICON_LOCK = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 8V6a3 3 0 1 1 6 0v3H9z"/></svg>`
+const ICON_LIST = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 6h2v2H4V6zm4 0h12v2H8V6zM4 11h2v2H4v-2zm4 0h12v2H8v-2zM4 16h2v2H4v-2zm4 0h12v2H8v-2z"/></svg>`
+
 /**
  * Export data to CSV file
  */
@@ -115,8 +120,9 @@ const pdfStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    padding: 10px;
   }
+  .logo-icon svg { width: 100%; height: 100%; color: white; }
 
   .header-title {
     font-size: 22px;
@@ -245,9 +251,9 @@ const pdfStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 14px;
+    padding: 6px;
   }
+  .section-icon svg { width: 100%; height: 100%; color: white; }
 
   .section-title {
     font-size: 16px;
@@ -411,11 +417,11 @@ const pdfStyles = `
   /* Site Column */
   .site-id {
     font-family: 'Monaco', 'Menlo', monospace;
-    font-size: 9px;
-    color: #64748b;
-    background: #f8fafc;
-    padding: 2px 6px;
-    border-radius: 3px;
+    font-size: 10.5px;
+    color: #334155;
+    background: #f1f5f9;
+    padding: 3px 8px;
+    border-radius: 4px;
   }
 
   /* Description Column */
@@ -429,8 +435,8 @@ const pdfStyles = `
   .timestamp {
     white-space: nowrap;
     font-family: 'Monaco', 'Menlo', monospace;
-    font-size: 9px;
-    color: #64748b;
+    font-size: 10.5px;
+    color: #334155;
   }
 
   /* Footer */
@@ -453,7 +459,11 @@ const pdfStyles = `
     font-weight: 700;
     font-size: 14px;
     color: #1e3a5f;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
+  .footer-logo svg { width: 14px; height: 14px; color: #1e3a5f; }
 
   .footer-tagline {
     font-size: 10px;
@@ -478,25 +488,11 @@ const pdfStyles = `
     color: #94a3b8;
   }
 
-  /* Page break handling */
-  @media print {
-    .report-container {
-      padding: 20px;
-    }
-
-    table {
-      page-break-inside: auto;
-    }
-
-    tr {
-      page-break-inside: avoid;
-      page-break-after: auto;
-    }
-
-    thead {
-      display: table-header-group;
-    }
-  }
+  /* Page break handling — applies in both print and html2pdf canvas mode */
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; break-inside: avoid; page-break-after: auto; }
+  thead { display: table-header-group; }
+  .report-footer { page-break-inside: avoid; break-inside: avoid; }
 `
 
 /**
@@ -518,7 +514,7 @@ export async function exportToPDF(title: string, content: HTMLElement | string):
         <div class="report-header">
           <div class="header-content">
             <div class="header-left">
-              <div class="logo-icon">🛡️</div>
+              <div class="logo-icon">${ICON_SHIELD}</div>
               <div>
                 <div class="header-title">AudioSOC Security Report</div>
                 <div class="header-subtitle">Security Operations Center - AudioPro Network</div>
@@ -543,7 +539,7 @@ export async function exportToPDF(title: string, content: HTMLElement | string):
         ${htmlContent}
         <div class="report-footer">
           <div class="footer-left">
-            <div class="footer-logo">🔒 AudioSOC</div>
+            <div class="footer-logo">${ICON_LOCK}<span>AudioSOC</span></div>
             <div class="footer-tagline">Protecting AudioPro Network Centers</div>
           </div>
           <div class="footer-right">
@@ -575,7 +571,7 @@ export async function exportToPDF(title: string, content: HTMLElement | string):
       format: 'a4' as const,
       orientation: 'landscape' as const
     },
-    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] as const }
+    pagebreak: { mode: ['css', 'legacy'] as const, avoid: ['tr', 'thead', '.report-footer'] }
   }
 
   try {
@@ -648,19 +644,19 @@ export function exportEventsReport(
   const tableHtml = `
     <div class="events-section">
       <div class="section-header">
-        <div class="section-icon">📋</div>
+        <div class="section-icon">${ICON_LIST}</div>
         <div class="section-title">Security Events</div>
         <div class="event-count">${events.length} events</div>
       </div>
       <table>
         <thead>
           <tr>
-            <th style="width: 130px;">Time</th>
+            <th style="width: 155px;">Time</th>
             <th style="width: 80px; text-align: center;">Severity</th>
             <th style="width: 100px; text-align: center;">Source</th>
             <th>Description</th>
             <th style="width: 90px; text-align: center;">Status</th>
-            <th style="width: 90px; text-align: center;">Site</th>
+            <th style="width: 120px; text-align: center;">Site</th>
           </tr>
         </thead>
         <tbody>

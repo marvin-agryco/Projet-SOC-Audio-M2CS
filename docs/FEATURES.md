@@ -498,6 +498,42 @@ the model is instructed to treat that section as untrusted data, not as a direct
 
 ---
 
+## Compliance Export Suite (v1.10)
+
+### Export Dialog
+- Replaces the old single-button dropdown on the Events page
+- **Scope selector**: Current page (visible events) / All filtered events / Custom date range
+- **Format selector**: CSV / JSON / PDF (quick) / PDF (compliance — audit-ready badge)
+- Live event-count preview with per-severity breakdown before exporting
+- Large-export warning (>5000 events) recommends CSV over PDF/JSON
+- Filters from the Events page (severity, source, status, search) are carried into the export
+
+### Backend Export Endpoints
+- `GET /api/events/export?format=csv|json` — streams matching events. CSV uses Flask `stream_with_context` + SQLAlchemy `yield_per(500)` to handle large exports without loading rows into memory. Max 100 000 rows enforced.
+- `GET /api/events/export/summary` — aggregate counts (per severity / status / source) + time range, no row payload. Used for the cover page of the compliance PDF and the live preview.
+- Shared `_build_event_query()` helper means all three event endpoints (`list_events`, `export_events`, `export_summary`) honour identical filter semantics.
+
+### Compliance PDF (`utils/complianceReport.ts`)
+- Multi-page audit-ready report rendered client-side with html2pdf.js
+- **Cover page**: report ID, analyst + role, generation timestamp, scope, active filters, SHA-256 hash of the raw events JSON (via `crypto.subtle.digest`)
+- **Summary page**: severity / status / source breakdowns + first/last event timestamps
+- **Event detail pages**: paginated tables with `page-break-inside: avoid` on rows and headers
+- Inline SVG icons (shield, lock) replace emojis to avoid baseline-misalignment in html2canvas
+- `pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'thead'] }` — page-break rules pulled out of `@media print` because html2pdf renders via html2canvas, not print media
+
+### Glass Chronos Date Range Picker (`components/DateRangePicker.tsx`)
+- Replaces the native `<input type="datetime-local">` (a "UI killer")
+- Glassmorphic surface: `rgba(15, 23, 42, 0.6)` + `backdrop-filter: blur(12px)` + `1px solid rgba(255,255,255,0.1)`
+- **Dual-month calendar** view with `ChevronLeft/Right` navigation
+- Soft blue tint (`rgba(59, 130, 246, 0.15)`) for days inside the range; solid blue + box-shadow glow on the start/end edges
+- **Quick presets sidebar**: Last 15m / 1h / 24h / 7d — for "click and export in under 2 seconds" incident workflow
+- "Next click → Set START / Set END" hint tracks selection state
+- **Horizontal time sliders** (H 0–23, M 0–59) with white-ringed blue thumbs and blue glow (`box-shadow: 0 0 10px rgba(59,130,246,0.6)`) — replaces the AM/PM scroll wheel
+- The active side (start vs end, based on next click target) lights up with a blue tint + border
+- Modal width auto-expands from `max-w-2xl` to `max-w-4xl` when range scope is selected
+
+---
+
 ## Planned Features (Roadmap)
 
 ### v1.9 (Planned)
@@ -527,3 +563,4 @@ the model is instructed to treat that section as untrusted data, not as a direct
 | v1.7 | 2026-02 | Suricata IDS (4th source), ActivityHeatmap V3 (date-based, severity breakdown, click-to-filter), StatCard Mission Critical (sparklines, statusColor), light theme opacity fixes, Sources Health Panel, heartbeat-based health monitoring |
 | v1.8 | 2026-03 | AI Triage Assistant: TriageBrief model, Celery pipeline, IP enrichment (VT+AbuseIPDB), Ollama LLM, TriageBriefPanel with confidence meter + MITRE chips + accept/edit/dismiss |
 | v1.9.1 | 2026-03 | Raw Log Explainer: "Explain this log" button on every event, sync LLM call, [UNTRUSTED LOG DATA] prompt injection protection |
+| v1.10 | 2026-05 | Compliance Export Suite: scope/format selector, streaming CSV backend, audit-ready PDF (cover + summary + SHA-256), Glass Chronos dual-calendar date picker with quick presets and horizontal time sliders |

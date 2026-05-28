@@ -206,6 +206,19 @@ None
 
 ---
 
+## Current Milestone: Version 1.10 — Compliance Export Suite — COMPLETED
+
+### Completed ✓
+
+- [x] **Backend export endpoints** (`routes/events.py`) — `GET /api/events/export` (CSV streaming via `yield_per(500)`, JSON), `GET /api/events/export/summary` (aggregate counts + time range), shared `_build_event_query()` helper for filter parity across `list_events`, `export_events`, `export_summary`
+- [x] **ExportDialog** (`components/ExportDialog.tsx`) — scope selector (page/all/range), format selector (CSV/JSON/PDF-quick/PDF-compliance), live event-count preview, large-export warning, error states
+- [x] **Compliance PDF** (`utils/complianceReport.ts`) — multi-page audit-ready report with cover (report ID + analyst + SHA-256 hash), summary (severity/status/source breakdowns + time range), paginated event tables with `page-break-inside: avoid`, inline SVG icons replacing emojis (which don't center in html2canvas)
+- [x] **Classic PDF improvements** (`utils/export.ts`) — page-break rules pulled out of `@media print` (html2pdf uses canvas, not print), pagebreak mode `['css', 'legacy']` with explicit avoid array, Time/Site column font sizes bumped to 10.5px and columns widened
+- [x] **Glass Chronos date picker** (`components/DateRangePicker.tsx`) — dual-month calendar with soft-blue range tint, quick presets (Last 15m/1h/24h/7d), horizontal H/M time sliders with custom CSS thumb (white ring + blue glow), glassmorphic surface (`rgba(15,23,42,0.6)` + `blur(12px)` + thin white border), active-side highlight tracking next-click target
+- [x] **CSS** (`index.css`) — `.chronos-slider` styles with both `::-webkit-slider-thumb` and `::-moz-range-thumb` (thumbs don't inherit, must define both)
+
+---
+
 ## Session Notes
 - 2026-01-14: Project initialized with PSB methodology. Created documentation files.
 - 2026-01-14: **V1 MVP COMPLETED** - Full stack implementation with backend (Flask), frontend (React), database (PostgreSQL), task queue (Celery/Redis), Docker deployment, and log generator for 30 audioprothésiste sites.
@@ -218,3 +231,4 @@ None
 - 2026-03-16: **V1.9.1 COMPLETED** — Raw Log Explainer: sync LLM endpoint on events, [UNTRUSTED LOG DATA] prompt injection protection, 8 new tests passing.
 - 2026-03-14: **V1.8 COMPLETED** — AI Triage Assistant: TriageBrief model + Celery task (VT/AbuseIPDB enrichment + Ollama LLM), TriageBriefPanel React component (confidence meter, MITRE chips, accept/edit/dismiss), Ollama Docker service, 54 new tests all passing.
 - 2026-02-28: **V1.7 COMPLETED** — Suricata IDS as 4th event source, ActivityHeatmap V3 (date-based grid, severity breakdown, click-to-filter, 7d/30d toggle), StatCard Mission Critical redesign (sparklines, statusColor, subValue), Events filter cleanup, light theme opacity variant fixes. Branch `fill-spaceV3` merged into master.
+- 2026-05-28: **V1.10 COMPLETED** — Compliance Export Suite: ExportDialog (scope/format selector + live preview), backend streaming CSV + summary endpoints with shared `_build_event_query` helper, audit-ready PDF (cover with SHA-256 + summary + paginated tables), Glass Chronos dual-calendar date picker with quick presets and horizontal time sliders. SVG icons replace emojis in PDFs; page-break rules moved out of `@media print` for html2pdf.

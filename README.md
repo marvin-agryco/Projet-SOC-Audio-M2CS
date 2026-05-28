@@ -58,7 +58,7 @@ Incident créé → Enrichissement IP (VT + AbuseIPDB) → LLM local (qwen2.5:1.
 - **Gestion des événements** avec filtres, recherche, assignation, groupement d'alertes, marquage faux positif rapide
 - **Authentification JWT** avec rôles (admin, analyst, supervisor)
 - **Interface bilingue** : toggle EN/FR en un clic, persisté en localStorage
-- **Export** CSV, PDF, JSON
+- **Export multi-format** : CSV (streaming backend), JSON, PDF rapide, **PDF compliance audit-ready** (cover + SHA-256 + résumé + tableaux paginés) ; Glass Chronos date picker avec presets (Last 15m / 1h / 24h / 7d) et sliders horizontaux H/M
 - **Playbooks** avec exécution étape par étape et intégration directe depuis les alertes
 - **Infrastructure simulée** : Wazuh SIEM + endpoints + firewall + Suricata IDS + GLPI
 

@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useRole } from '../context/RoleContext'
-import { Search, Filter, ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Wand2, Loader2 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { Search, Filter, ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Wand2, Loader2, Download } from 'lucide-react'
 import { fetchEvents, updateEventStatus, explainEvent, deleteEvent } from '../api'
 import { SecurityEvent, EventStatus } from '../types'
 import EventCard from '../components/EventCard'
 import SeverityBadge from '../components/SeverityBadge'
 import StatusBadge from '../components/StatusBadge'
 import CustomSelect from '../components/CustomSelect'
-import ExportButton from '../components/ExportButton'
-import { exportEventsToCSV, exportEventsReport, exportToJSON } from '../utils/export'
+import ExportDialog from '../components/ExportDialog'
 import { fmtDateTime } from '../utils/dateFormat'
 
 export default function Events() {
-  const { canExport } = useRole()
+  const { canExport, effectiveRole } = useRole()
+  const { user } = useAuth()
   const location = useLocation()
   const locationState = location.state as { site_id?: string; severity?: string } | null
 
@@ -25,6 +26,7 @@ export default function Events() {
   const [explanation, setExplanation] = useState<string | null>(null)
   const [explaining, setExplaining] = useState(false)
   const [explainError, setExplainError] = useState<string | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
 
   // Filters — pre-populated from navigation state (e.g. from endpoint "View Logs")
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
@@ -114,26 +116,14 @@ export default function Events() {
             </div>
           </div>
           {canExport && (
-            <ExportButton
-              onExport={(format) => {
-                const stats = {
-                  total: events.length,
-                  critical: events.filter((e) => e.severity === 'critical').length,
-                  high: events.filter((e) => e.severity === 'high').length,
-                  medium: events.filter((e) => e.severity === 'medium').length,
-                  low: events.filter((e) => e.severity === 'low').length,
-                }
-                if (format === 'csv') {
-                  exportEventsToCSV(events, `security-events-${new Date().toISOString().split('T')[0]}`)
-                } else if (format === 'pdf') {
-                  exportEventsReport(events, stats)
-                } else if (format === 'json') {
-                  exportToJSON(events, `security-events-${new Date().toISOString().split('T')[0]}`)
-                }
-              }}
-              formats={['csv', 'pdf', 'json']}
+            <button
+              onClick={() => setExportOpen(true)}
               disabled={events.length === 0}
-            />
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
           )}
         </div>
 
@@ -372,6 +362,21 @@ export default function Events() {
           </div>
         </div>
       )}
+
+      <ExportDialog
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        pageEvents={events}
+        currentFilters={{
+          severity: severityFilter || undefined,
+          status: statusFilter || undefined,
+          source: sourceFilter || undefined,
+          site_id: siteIdFilter || undefined,
+          search: search || undefined,
+        }}
+        analyst={user?.username || 'Unknown'}
+        role={effectiveRole}
+      />
     </div>
   )
 }
