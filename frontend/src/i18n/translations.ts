@@ -37,6 +37,10 @@ const translations: Record<Language, Record<string, string>> = {
     'dashboard.endpoints': 'Endpoints',
     'dashboard.sources': 'Sources',
     'dashboard.fromYesterday': 'from yesterday',
+    'dashboard.requiresAttention': 'Requires attention',
+    'dashboard.allClear': 'All clear',
+    'dashboard.agentsReporting': 'All agents reporting',
+    'dashboard.sourcesActive': 'Pipelines active',
 
     // Sources Panel
     'sources.title': 'Collection Sources',
@@ -241,6 +245,10 @@ const translations: Record<Language, Record<string, string>> = {
     'dashboard.endpoints': 'Endpoints',
     'dashboard.sources': 'Sources',
     'dashboard.fromYesterday': 'vs hier',
+    'dashboard.requiresAttention': 'Attention requise',
+    'dashboard.allClear': 'Tout est clair',
+    'dashboard.agentsReporting': 'Tous les agents actifs',
+    'dashboard.sourcesActive': 'Pipelines actifs',
 
     // Sources Panel
     'sources.title': 'Sources de collecte',

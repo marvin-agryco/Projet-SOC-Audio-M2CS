@@ -151,8 +151,11 @@ def get_stats():
                 for sev, count in severity_counts.items()
             },
             "by_source": {
-                src.value if hasattr(src, "value") else str(src): count
-                for src, count in source_counts.items()
+                **{src.value: 0 for src in EventSource},
+                **{
+                    (src.value if hasattr(src, "value") else str(src)): count
+                    for src, count in source_counts.items()
+                },
             },
         }
     )

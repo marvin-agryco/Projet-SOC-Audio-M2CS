@@ -12,6 +12,8 @@ import {
   MessageSquare,
   Send,
   Check,
+  PlayCircle,
+  Sparkles,
 } from 'lucide-react'
 import clsx from 'clsx'
 import Modal from './Modal'
@@ -51,6 +53,27 @@ const statusStyles: Record<EventStatus, { bg: string; text: string }> = {
   investigating: { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
   resolved: { bg: 'bg-green-500/20', text: 'text-green-400' },
   false_positive: { bg: 'bg-slate-500/20', text: 'text-slate-400' },
+}
+
+function recommendedPlaybookName(event: SecurityEvent | null, playbooks: Playbook[]): Playbook | null {
+  if (!event || playbooks.length === 0) return null
+  const type = (event.event_type || '').toLowerCase()
+  const desc = (event.description || '').toLowerCase()
+  const haystack = `${type} ${desc}`
+
+  const find = (kw: string) =>
+    playbooks.find((p) => p.name.toLowerCase().includes(kw))
+
+  if (haystack.includes('brute') || haystack.includes('auth_failure') || haystack.includes('ssh')) {
+    return find('brute') ?? null
+  }
+  if (haystack.includes('malware') || haystack.includes('ransom')) {
+    return find('malware') ?? null
+  }
+  if (haystack.includes('scan') || haystack.includes('port')) {
+    return find('scan') ?? null
+  }
+  return null
 }
 
 function extractContext(event: SecurityEvent): Record<string, string> {
@@ -178,6 +201,14 @@ export default function AlertDetailModal({
         setComments([])
       }
       setTimeline(buildTimelineFromData(eventData, loadedComments))
+
+      // Pre-fetch active playbooks so the Recommended banner can render
+      try {
+        const pbData = await fetchPlaybooks({ status: 'active' })
+        setPlaybooks(pbData.playbooks || [])
+      } catch {
+        // banner will simply not render — non-fatal
+      }
     } catch (error) {
       console.error('Failed to load event:', error)
       toast.error(t('common.loading'))
@@ -237,6 +268,33 @@ export default function AlertDetailModal({
     } catch (error) {
       console.error('Failed to assign:', error)
       toast.error('Failed to assign analyst')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function runPlaybook(pb: Playbook) {
+    if (!event) return
+    setSaving(true)
+    try {
+      await executePlaybook(pb.id, {
+        eventId: event.id,
+        startedBy: 'Current User',
+      })
+      toast.success(`Playbook "${pb.name}" launched`)
+      addPlaybookNotification(pb.name)
+      setActionStates((prev) => ({ ...prev, playbook: 'done' }))
+      setTimeline((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          timestamp: new Date().toISOString(),
+          action: `Playbook "${pb.name}" launched`,
+          actor: 'Current User',
+        },
+      ])
+    } catch {
+      toast.error(`Failed to execute "${pb.name}"`)
     } finally {
       setSaving(false)
     }
@@ -329,6 +387,39 @@ export default function AlertDetailModal({
               </div>
             </div>
           </div>
+
+          {/* Recommended Playbook CTA */}
+          {(() => {
+            const recommended = recommendedPlaybookName(event, playbooks)
+            if (!recommended || actionStates.playbook === 'done') return null
+            return (
+              <div className="px-6 py-3 border-b border-slate-700/50 bg-gradient-to-r from-violet-500/10 via-blue-500/10 to-transparent">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-violet-500/20 text-violet-300 shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs uppercase tracking-wider text-violet-300 font-semibold">
+                        {t('modal.recommended') || 'Recommended'}
+                      </p>
+                      <p className="text-sm text-slate-100 font-medium truncate">
+                        {recommended.name}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => runPlaybook(recommended)}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-700 text-white transition-colors disabled:opacity-50 shrink-0"
+                  >
+                    <PlayCircle className="w-4 h-4" />
+                    Run now
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Tabs */}
           <div className="flex border-b border-slate-700/50">
@@ -598,7 +689,7 @@ export default function AlertDetailModal({
                             if (isDone) {
                               setActionStates((prev) => ({ ...prev, [action.key]: 'idle' }))
                               toast.info(`${t(action.labelKey)} undone`)
-                              setTimeline((prev) => prev.filter((t) => t.action !== t(action.doneLabelKey)))
+                              setTimeline((prev) => prev.filter((tl) => tl.action !== t(action.doneLabelKey)))
                             } else {
                               setActionStates((prev) => ({ ...prev, [action.key]: 'done' }))
                               toast.success(t(action.doneLabelKey))
@@ -686,28 +777,8 @@ export default function AlertDetailModal({
                                   <button
                                     key={pb.id}
                                     onClick={async () => {
-                                      if (!event) return
-                                      try {
-                                        await executePlaybook(pb.id, {
-                                          eventId: event.id,
-                                          startedBy: 'Current User',
-                                        })
-                                        toast.success(`Playbook "${pb.name}" launched`)
-                                        addPlaybookNotification(pb.name)
-                                        setShowPlaybookPicker(false)
-                                        setActionStates((prev) => ({ ...prev, playbook: 'done' }))
-                                        setTimeline((prev) => [
-                                          ...prev,
-                                          {
-                                            id: Date.now().toString(),
-                                            timestamp: new Date().toISOString(),
-                                            action: `Playbook "${pb.name}" launched`,
-                                            actor: 'Current User',
-                                          },
-                                        ])
-                                      } catch {
-                                        toast.error(`Failed to execute "${pb.name}"`)
-                                      }
+                                      setShowPlaybookPicker(false)
+                                      await runPlaybook(pb)
                                     }}
                                     className="w-full px-3 py-2 text-left hover:bg-slate-700 transition-colors flex items-center justify-between"
                                   >

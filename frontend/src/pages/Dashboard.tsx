@@ -24,11 +24,11 @@ interface DashboardProps {
 
 type TimeRange = '5m' | '15m' | '30m' | '1h' | '6h' | '24h' | '7d' | '30d'
 
-// Source colors for donut chart — matches real infrastructure
+// Source colors for donut chart — must stay aligned with SourcesPanel SOURCE_CONFIG
 const SOURCE_COLORS: Record<string, string> = {
-  firewall: '#ef4444',    // red
+  firewall: '#f97316',    // orange
   endpoint: '#3b82f6',    // blue
-  application: '#f59e0b', // amber (GLPI)
+  application: '#22c55e', // green (GLPI)
   ids: '#8b5cf6',         // purple (Suricata)
 }
 
@@ -57,6 +57,20 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
   const [heatmapDays, setHeatmapDays] = useState(30)
   const [timeSlice, setTimeSlice] = useState<{start: string, end: string} | null>(null)
   const [sourcePanelOpen, setSourcePanelOpen] = useState(false)
+
+  // Realtime pulse: flash the affected cards when a new event arrives
+  const [pulseTick, setPulseTick] = useState(0)
+  const [pulseSeverity, setPulseSeverity] = useState<string | null>(null)
+  useEffect(() => {
+    if (realtimeEvents.length === 0) return
+    const latest = realtimeEvents[0]
+    if (latest.event_type === 'keepalive') return
+    setPulseSeverity(latest.severity)
+    setPulseTick((t) => t + 1)
+    const timer = setTimeout(() => setPulseSeverity(null), 1500)
+    return () => clearTimeout(timer)
+  }, [realtimeEvents])
+  const pulseActive = pulseTick > 0 && pulseSeverity !== null
 
   const loadData = useCallback(async (
     currentTimeRange: TimeRange = timeRange,
@@ -258,15 +272,18 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <StatCard
+          key={`events-${pulseTick}`}
           icon={<Activity className="w-6 h-6" />}
           label={t('dashboard.securityEvents')}
           value={stats?.total_events ?? 0}
           trend={eventsTrend !== null ? { value: Math.abs(eventsTrend), isPositive: eventsTrend <= 0, severity: Math.abs(eventsTrend) > 100 ? 'critical' : Math.abs(eventsTrend) > 50 ? 'warning' : 'normal' } : undefined}
           sparklineData={trends?.hourly?.map((h: { count: number }) => h.count) || []}
           statusColor="normal"
+          pulse={pulseActive}
           linkTo="/events"
         />
         <StatCard
+          key={`alerts-${pulseTick}`}
           icon={<AlertTriangle className="w-6 h-6" />}
           label={t('dashboard.alertsTriggered')}
           value={stats?.total_rule_triggers ?? 0}
@@ -277,13 +294,14 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
             </div>
           }
           statusColor={(stats?.total_rule_triggers || 0) > 100 ? 'critical' : (stats?.total_rule_triggers || 0) > 50 ? 'warning' : 'normal'}
+          pulse={pulseActive && (pulseSeverity === 'critical' || pulseSeverity === 'high')}
           linkTo="/alerts"
         />
         <StatCard
           icon={<ShieldAlert className="w-6 h-6" />}
           label={t('dashboard.openIncidents')}
           value={stats?.open_incidents ?? 0}
-          subValue="Avg. Time to Resolve: 12m"
+          subValue={(stats?.open_incidents || 0) > 0 ? t('dashboard.requiresAttention') : t('dashboard.allClear')}
           statusColor={(stats?.open_incidents || 0) > 0 ? 'critical' : 'success'}
           linkTo="/incidents"
         />
@@ -291,7 +309,7 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
           icon={<Monitor className="w-6 h-6" />}
           label={t('dashboard.endpoints')}
           value={stats?.total_sites ?? 0}
-          subValue="All agents reporting"
+          subValue={t('dashboard.agentsReporting')}
           statusColor="success"
           linkTo="/sites"
         />
@@ -299,7 +317,7 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
           icon={<Users className="w-6 h-6" />}
           label={t('dashboard.sources')}
           value={`${stats?.by_source ? Object.keys(stats.by_source).length : 0} / 4`}
-          subValue="Ingestion: 1.2 MB/s"
+          subValue={t('dashboard.sourcesActive')}
           statusColor={(stats?.by_source && Object.keys(stats.by_source).length < 4) ? 'warning' : 'normal'}
           onClick={() => setSourcePanelOpen(true)}
         />

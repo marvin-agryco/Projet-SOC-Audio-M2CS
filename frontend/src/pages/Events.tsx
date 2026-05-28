@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useRole } from '../context/RoleContext'
 import { useAuth } from '../context/AuthContext'
-import { Search, Filter, ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Wand2, Loader2, Download } from 'lucide-react'
-import { fetchEvents, updateEventStatus, explainEvent, deleteEvent } from '../api'
+import { useSocket } from '../hooks/useSocket'
+import clsx from 'clsx'
+import { Search, Filter, ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Wand2, Loader2, Download, Radio } from 'lucide-react'
+import { fetchEvents, updateEventStatus, explainEvent, deleteEvent, fetchEndpoints } from '../api'
 import { SecurityEvent, EventStatus } from '../types'
 import EventCard from '../components/EventCard'
 import SeverityBadge from '../components/SeverityBadge'
@@ -15,6 +17,7 @@ import { fmtDateTime } from '../utils/dateFormat'
 export default function Events() {
   const { canExport, effectiveRole } = useRole()
   const { user } = useAuth()
+  const { socket, connected } = useSocket()
   const location = useLocation()
   const locationState = location.state as { site_id?: string; severity?: string } | null
 
@@ -26,12 +29,15 @@ export default function Events() {
   const [explanation, setExplanation] = useState<string | null>(null)
   const [explaining, setExplaining] = useState(false)
   const [explainError, setExplainError] = useState<string | null>(null)
+  const [rowExplainingId, setRowExplainingId] = useState<string | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
+  const [newCount, setNewCount] = useState(0)
 
   // Filters — pre-populated from navigation state (e.g. from endpoint "View Logs")
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
   const [search, setSearch] = useState('')
-  const [siteIdFilter] = useState<string>(locationState?.site_id ?? '')
+  const [siteIdFilter, setSiteIdFilter] = useState<string>(locationState?.site_id ?? '')
+  const [siteOptions, setSiteOptions] = useState<Array<{ value: string; label: string }>>([])
   const [severityFilter, setSeverityFilter] = useState<string>(locationState?.severity ?? '')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [sourceFilter, setSourceFilter] = useState<string>('')
@@ -39,7 +45,47 @@ export default function Events() {
 
   useEffect(() => {
     loadEvents()
+    if (page === 1) setNewCount(0)
   }, [page, perPage, search, siteIdFilter, severityFilter, statusFilter, sourceFilter])
+
+  // Populate site filter options once
+  useEffect(() => {
+    fetchEndpoints({ limit: 200 })
+      .then((res) => {
+        const opts = [{ value: '', label: 'All Sites' }].concat(
+          res.endpoints
+            .map((e) => ({ value: e.site_id, label: e.site_id }))
+            .filter((o, i, arr) => o.value && arr.findIndex(x => x.value === o.value) === i)
+            .sort((a, b) => a.label.localeCompare(b.label))
+        )
+        setSiteOptions(opts)
+      })
+      .catch(() => setSiteOptions([{ value: '', label: 'All Sites' }]))
+  }, [])
+
+  // Realtime: prepend new events when on page 1 and they pass current filters
+  useEffect(() => {
+    if (!socket) return
+    const handler = (event: SecurityEvent) => {
+      if (event.event_type === 'keepalive') return
+      const matchesSeverity = !severityFilter || event.severity === severityFilter
+      const matchesStatus   = !statusFilter   || event.status   === statusFilter
+      const matchesSource   = !sourceFilter   || event.source   === sourceFilter
+      const matchesSite     = !siteIdFilter   || event.site_id  === siteIdFilter
+      if (!(matchesSeverity && matchesStatus && matchesSource && matchesSite)) return
+
+      if (page === 1) {
+        setEvents((prev) => {
+          if (prev.some((e) => e.id === event.id)) return prev
+          return [event, ...prev].slice(0, perPage)
+        })
+      } else {
+        setNewCount((c) => c + 1)
+      }
+    }
+    socket.on('new_event', handler)
+    return () => { socket.off('new_event', handler) }
+  }, [socket, page, perPage, severityFilter, statusFilter, sourceFilter, siteIdFilter])
 
   async function loadEvents() {
     setLoading(true)
@@ -78,6 +124,23 @@ export default function Events() {
     }
   }
 
+  async function handleRowExplain(event: SecurityEvent) {
+    setSelectedEvent(event)
+    setExplainError(null)
+    setExplanation(null)
+    setRowExplainingId(event.id)
+    setExplaining(true)
+    try {
+      const result = await explainEvent(event.id)
+      setExplanation(result.explanation)
+    } catch {
+      setExplainError('Could not generate explanation')
+    } finally {
+      setExplaining(false)
+      setRowExplainingId(null)
+    }
+  }
+
   async function handleStatusChange(eventId: string, newStatus: EventStatus) {
     try {
       const updated = await updateEventStatus(eventId, { status: newStatus })
@@ -97,6 +160,16 @@ export default function Events() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold">Security Events</h1>
+            <span
+              title={connected ? 'Realtime connected' : 'Realtime disconnected'}
+              className={clsx(
+                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
+                connected ? 'bg-green-500/15 text-green-400' : 'bg-slate-500/15 text-slate-400'
+              )}
+            >
+              <Radio className={clsx('w-3 h-3', connected && 'animate-pulse')} />
+              {connected ? 'LIVE' : 'OFFLINE'}
+            </span>
             {/* View mode toggle */}
             <div className="flex items-center gap-1 p-1 bg-gray-800 border border-gray-700 rounded-lg">
               <button
@@ -183,6 +256,13 @@ export default function Events() {
             />
 
             <CustomSelect
+              value={siteIdFilter}
+              onChange={(v) => { setSiteIdFilter(v); setPage(1) }}
+              placeholder="All Sites"
+              options={siteOptions.length > 0 ? siteOptions : [{ value: '', label: 'All Sites' }]}
+            />
+
+            <CustomSelect
               value={String(perPage)}
               onChange={(v) => { setPerPage(Number(v)); setPage(1) }}
               placeholder="20 / page"
@@ -206,6 +286,17 @@ export default function Events() {
           </form>
         </div>
 
+        {/* New events notice */}
+        {newCount > 0 && (
+          <button
+            onClick={() => { setPage(1); setNewCount(0) }}
+            className="w-full mb-3 px-4 py-2 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+          >
+            <Radio className="w-3.5 h-3.5 animate-pulse" />
+            {newCount} new event{newCount === 1 ? '' : 's'} — jump to page 1
+          </button>
+        )}
+
         {/* Events List */}
         {loading ? (
           <div className="text-center py-12">Loading...</div>
@@ -219,6 +310,8 @@ export default function Events() {
                   event={event}
                   onClick={() => { setSelectedEvent(event); setExplanation(null); setExplainError(null) }}
                   onDelete={(e) => { e.stopPropagation(); handleDelete(event.id) }}
+                  onExplain={(e) => { e.stopPropagation(); handleRowExplain(event) }}
+                  explaining={rowExplainingId === event.id}
                 />
               </div>
             ))}
@@ -314,8 +407,7 @@ export default function Events() {
                       }
                     }}
                     disabled={explaining}
-                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg mt-2 transition-colors disabled:opacity-50"
-                    style={{ backgroundColor: 'rgb(139 92 246 / 0.15)', color: '#a78bfa' }}
+                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg mt-2 transition-colors disabled:opacity-50 bg-violet-500/15 text-violet-300 hover:bg-violet-500/25"
                   >
                     {explaining
                       ? <><Loader2 className="w-3 h-3 animate-spin" /> Explaining...</>
@@ -324,10 +416,13 @@ export default function Events() {
                 )}
                 {explanation && (
                   <div
-                    className="mt-2 p-2.5 rounded-lg text-xs leading-relaxed"
-                    style={{ backgroundColor: 'rgb(139 92 246 / 0.08)', borderLeft: '2px solid #6366f1', color: 'var(--color-text-primary)' }}
+                    className="mt-2 p-2.5 rounded-lg text-xs leading-relaxed border-l-2 border-violet-500"
+                    style={{
+                      backgroundColor: 'rgb(139 92 246 / 0.10)',
+                      color: 'var(--color-text-primary)',
+                    }}
                   >
-                    <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>AI: </span>
+                    <span className="font-medium" style={{ color: '#a78bfa' }}>AI: </span>
                     {explanation}
                   </div>
                 )}

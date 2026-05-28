@@ -16,6 +16,7 @@ export interface StatCardProps {
         severity?: 'normal' | 'warning' | 'critical'
     }
     sparklineData?: number[] // Optional array of numbers to draw a mini sparkline
+    pulse?: boolean // Briefly pulse the card when a realtime event arrives
     onClick?: () => void
     linkTo?: string
     linkParams?: Record<string, string>
@@ -59,7 +60,7 @@ const Sparkline = ({ data, colorClass }: { data: number[], colorClass: string })
     )
 }
 
-export default function StatCard({ icon, label, value, subValue, statusColor = 'normal', trend, sparklineData, onClick, linkTo, linkParams }: StatCardProps) {
+export default function StatCard({ icon, label, value, subValue, statusColor = 'normal', trend, sparklineData, pulse, onClick, linkTo, linkParams }: StatCardProps) {
     const navigate = useNavigate()
     const { t } = useLanguage()
     const isClickable = onClick || linkTo
@@ -103,9 +104,16 @@ export default function StatCard({ icon, label, value, subValue, statusColor = '
                 isClickable && `cursor-pointer hover:bg-slate-800/80 -translate-y-0 hover:-translate-y-1 hover:shadow-lg group`,
                 isClickable && borderHoverClass,
                 statusColor === 'critical' && 'border-red-500/20 bg-red-500/5',
-                statusColor === 'warning' && 'border-amber-500/20 bg-amber-500/5'
+                statusColor === 'warning' && 'border-amber-500/20 bg-amber-500/5',
+                pulse && 'statcard-pulse'
             )}
         >
+            {pulse && (
+                <span className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-500/20 text-green-300 z-20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                    LIVE
+                </span>
+            )}
             {sparklineData && <Sparkline data={sparklineData} colorClass={sparklineStrokeClass} />}
             
             <div className="flex items-start justify-between relative z-10">

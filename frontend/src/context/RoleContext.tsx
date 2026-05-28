@@ -35,7 +35,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const canAssign         = effectiveRole === 'admin' || effectiveRole === 'supervisor'
   const canManageRules    = effectiveRole === 'admin' || effectiveRole === 'supervisor'
   const canManagePlaybooks = effectiveRole === 'admin' || effectiveRole === 'supervisor'
-  const canExport         = effectiveRole === 'admin' || effectiveRole === 'supervisor'
+  // Analysts produce reports too — exporting an investigation is part of their role.
+  const canExport         = true
 
   return (
     <RoleContext.Provider value={{

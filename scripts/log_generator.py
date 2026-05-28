@@ -228,7 +228,11 @@ def generate_attack_scenario():
 
     for i, event in enumerate(scenario):
         event["site_id"] = site
-        event["metadata"] = {"attacker_ip": attacker_ip, "target_user": target_user}
+        # source_ip is the canonical key used by Top Source IPs and triage enrichment.
+        event["metadata"] = {
+            "source_ip": attacker_ip,
+            "target_user": target_user,
+        }
         event["raw_log"] = generate_raw_log(event["source"], event["event_type"])
         event["timestamp"] = datetime.now(timezone.utc).isoformat()
 

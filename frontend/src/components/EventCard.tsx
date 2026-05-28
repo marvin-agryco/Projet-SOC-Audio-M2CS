@@ -1,3 +1,4 @@
+import { Wand2, Loader2 } from 'lucide-react'
 import { SecurityEvent } from '../types'
 import { fmtTime, fmtDate } from '../utils/dateFormat'
 import SeverityBadge from './SeverityBadge'
@@ -7,9 +8,11 @@ interface EventCardProps {
   event: SecurityEvent
   onClick?: () => void
   onDelete?: (e: React.MouseEvent) => void
+  onExplain?: (e: React.MouseEvent) => void
+  explaining?: boolean
 }
 
-export default function EventCard({ event, onClick, onDelete }: EventCardProps) {
+export default function EventCard({ event, onClick, onDelete, onExplain, explaining }: EventCardProps) {
   return (
     <div
       onClick={onClick}
@@ -33,15 +36,29 @@ export default function EventCard({ event, onClick, onDelete }: EventCardProps) 
               <div className="mt-1 text-xs text-blue-400">{event.site_id}</div>
             )}
           </div>
-          {onDelete && (
-            <button
-              onClick={onDelete}
-              className="p-1 rounded text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-              title="Delete event"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-            </button>
-          )}
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            {onExplain && event.raw_log && (
+              <button
+                onClick={onExplain}
+                disabled={explaining}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:text-violet-200 transition-colors disabled:opacity-60"
+                title="Explain this log with AI"
+              >
+                {explaining
+                  ? <><Loader2 className="w-3 h-3 animate-spin" /><span>Explaining…</span></>
+                  : <><Wand2 className="w-3 h-3" /><span>Explain</span></>}
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                className="p-1 rounded text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors opacity-0 group-hover:opacity-100"
+                title="Delete event"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

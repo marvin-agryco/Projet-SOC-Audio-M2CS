@@ -16,6 +16,25 @@ function confidenceColor(score: number): string {
   return '#ef4444'                    // red-500
 }
 
+const MITRE_TECHNIQUE = /^T\d{4}(\.\d{3})?$/
+const MITRE_TACTIC    = /^TA\d{4}$/
+
+/** Resolve a MITRE chip to (label, attack.mitre.org url) — null if format is unrecognised. */
+function mitreLink(raw: string): { label: string; href: string } | null {
+  const trimmed = (raw || '').trim()
+  if (!trimmed) return null
+  const upper = trimmed.toUpperCase()
+  if (MITRE_TECHNIQUE.test(upper)) {
+    const [tech, sub] = upper.split('.')
+    const path = sub ? `${tech}/${sub}` : tech
+    return { label: upper, href: `https://attack.mitre.org/techniques/${path}/` }
+  }
+  if (MITRE_TACTIC.test(upper)) {
+    return { label: upper, href: `https://attack.mitre.org/tactics/${upper}/` }
+  }
+  return null
+}
+
 export default function TriageBriefPanel({ incidentId, analystName }: Props) {
   const { socket } = useSocket()
 
@@ -25,6 +44,7 @@ export default function TriageBriefPanel({ incidentId, analystName }: Props) {
   const [editNotes, setEditNotes] = useState('')
   const [saving, setSaving]     = useState(false)
   const [retriaging, setRetriaging] = useState(false)
+  const [pollTimeout, setPollTimeout] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -43,11 +63,23 @@ export default function TriageBriefPanel({ incidentId, analystName }: Props) {
 
   // Poll every 3s while the brief is in-flight (Celery runs in a separate process,
   // so the WebSocket emission from the worker doesn't reach connected clients).
-  // Stop polling as soon as we reach a terminal state.
+  // Cap at 60s (~20 attempts) so a dead Ollama doesn't poll forever.
   useEffect(() => {
     const inFlight = brief?.status === 'pending' || brief?.status === 'generating'
-    if (!inFlight) return
-    const interval = setInterval(load, 3000)
+    if (!inFlight) {
+      setPollTimeout(false)
+      return
+    }
+    let attempts = 0
+    const interval = setInterval(() => {
+      attempts += 1
+      if (attempts > 20) {
+        setPollTimeout(true)
+        clearInterval(interval)
+        return
+      }
+      load()
+    }, 3000)
     return () => clearInterval(interval)
   }, [brief?.status, load])
 
@@ -81,6 +113,7 @@ export default function TriageBriefPanel({ incidentId, analystName }: Props) {
 
   async function handleRetriage() {
     setRetriaging(true)
+    setPollTimeout(false)
     try {
       const newBrief = await retriageIncident(incidentId)
       setBrief(newBrief)
@@ -143,12 +176,32 @@ export default function TriageBriefPanel({ incidentId, analystName }: Props) {
 
       <div className="px-4 py-3">
         {/* Loading / generating state */}
-        {(loading || isInFlight) && (
+        {(loading || isInFlight) && !pollTimeout && (
           <div className="flex items-center gap-2 py-2" style={{ color: 'var(--color-text-muted)' }}>
             <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
             <span className="text-sm">
               {loading ? 'Loading...' : 'Generating triage brief...'}
             </span>
+          </div>
+        )}
+
+        {/* Polling timeout — AI worker likely offline */}
+        {pollTimeout && (
+          <div className="flex items-start gap-2 py-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm text-amber-400 font-medium">AI worker not responding</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                Stopped polling after 60s. Check Ollama / Celery, then{' '}
+                <button
+                  onClick={handleRetriage}
+                  disabled={retriaging}
+                  className="text-violet-400 hover:underline disabled:opacity-50"
+                >
+                  retry
+                </button>.
+              </p>
+            </div>
           </div>
         )}
 
@@ -186,10 +239,11 @@ export default function TriageBriefPanel({ incidentId, analystName }: Props) {
           <div className="space-y-3">
             {/* Confidence meter */}
             {brief.confidence !== null && (
-              <div>
+              <div title="Model confidence — derived from data completeness and hypothesis fit. ≥70% high, 40–69% moderate, <40% low.">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+                  <span className="text-xs font-medium cursor-help" style={{ color: 'var(--color-text-muted)' }}>
                     Confidence
+                    <span className="ml-1 opacity-60">ⓘ</span>
                   </span>
                   <span
                     className="text-xs font-bold"
@@ -247,22 +301,41 @@ export default function TriageBriefPanel({ incidentId, analystName }: Props) {
                   MITRE Tactics
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {brief.mitre_tactics.map((tactic) => (
-                    <a
-                      key={tactic}
-                      href={`https://attack.mitre.org/techniques/${tactic}/`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium hover:bg-violet-500/30 transition-colors"
-                      style={{
-                        backgroundColor: 'rgb(139 92 246 / 0.15)',
-                        color: '#a78bfa',
-                      }}
-                    >
-                      {tactic}
-                      <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
-                  ))}
+                  {brief.mitre_tactics.map((tactic) => {
+                    const link = mitreLink(tactic)
+                    if (link) {
+                      return (
+                        <a
+                          key={tactic}
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium hover:bg-violet-500/30 transition-colors"
+                          style={{
+                            backgroundColor: 'rgb(139 92 246 / 0.15)',
+                            color: '#a78bfa',
+                          }}
+                        >
+                          {link.label}
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                      )
+                    }
+                    // Unrecognised format (e.g. LLM returned a tactic name) — render as a non-link chip.
+                    return (
+                      <span
+                        key={tactic}
+                        title="MITRE reference — no canonical ID resolved"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium"
+                        style={{
+                          backgroundColor: 'rgb(139 92 246 / 0.10)',
+                          color: '#a78bfa',
+                        }}
+                      >
+                        {tactic}
+                      </span>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -278,6 +351,29 @@ export default function TriageBriefPanel({ incidentId, analystName }: Props) {
                 </p>
               </div>
             )}
+
+            {/* IP enrichment status */}
+            {brief.ip_enrichment && Object.keys(brief.ip_enrichment).length > 0 && (() => {
+              const ips = Object.entries(brief.ip_enrichment as Record<string, Record<string, unknown>>)
+              const anyEnriched = ips.some(([, v]) => v && (v.virustotal || v.abuseipdb))
+              if (anyEnriched) {
+                return (
+                  <div className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-green-500/10 text-green-400 w-fit">
+                    <Check className="w-3 h-3" />
+                    {ips.length} IP{ips.length === 1 ? '' : 's'} enriched (VT / AbuseIPDB)
+                  </div>
+                )
+              }
+              return (
+                <div
+                  className="flex items-center gap-1.5 text-xs px-2 py-1 rounded bg-amber-500/10 text-amber-400 w-fit"
+                  title="VT_API_KEY / ABUSEIPDB_API_KEY not configured"
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  Enrichment skipped — no API key
+                </div>
+              )
+            })()}
 
             {/* Analyst notes (post-review) */}
             {brief.analyst_notes && !editing && (

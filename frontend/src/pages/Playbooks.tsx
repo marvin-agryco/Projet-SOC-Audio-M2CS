@@ -25,8 +25,10 @@ import {
   RotateCcw,
   Activity,
   StopCircle,
-  History
+  History,
+  Loader2,
 } from 'lucide-react'
+import { toast } from '../components/Toast'
 import clsx from 'clsx'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -699,12 +701,25 @@ function ExecutionDetail({
   onClose,
 }: {
   execution: PlaybookExecution
-  onUpdateStep: (stepIndex: number, status: string) => void
+  onUpdateStep: (stepIndex: number, status: string) => Promise<void>
   onAbort: () => void
   onComplete: () => void
   onClose: () => void
 }) {
   const isActive = execution.status === 'in_progress'
+  const [savingStepIndex, setSavingStepIndex] = useState<number | null>(null)
+
+  async function handleStep(index: number, status: 'completed' | 'skipped') {
+    setSavingStepIndex(index)
+    try {
+      await onUpdateStep(index, status)
+      toast.success(`Step ${index + 1} ${status === 'completed' ? 'completed' : 'skipped'}`)
+    } catch {
+      toast.error(`Failed to update step ${index + 1}`)
+    } finally {
+      setSavingStepIndex(null)
+    }
+  }
 
   return (
     <div className="glass-card overflow-hidden">
@@ -795,18 +810,29 @@ function ExecutionDetail({
                 {/* Status / Actions */}
                 {isActive && step.status === 'pending' && index === execution.currentStep && (
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => onUpdateStep(index, 'completed')}
-                      className="px-2 py-1 text-xs bg-green-600/20 text-green-400 rounded hover:bg-green-600/30"
-                    >
-                      Complete
-                    </button>
-                    <button
-                      onClick={() => onUpdateStep(index, 'skipped')}
-                      className="px-2 py-1 text-xs bg-yellow-600/20 text-yellow-400 rounded hover:bg-yellow-600/30"
-                    >
-                      Skip
-                    </button>
+                    {savingStepIndex === index ? (
+                      <span className="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-300">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Saving…
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleStep(index, 'completed')}
+                          disabled={savingStepIndex !== null}
+                          className="px-2 py-1 text-xs bg-green-600/20 text-green-400 rounded hover:bg-green-600/30 disabled:opacity-40"
+                        >
+                          Complete
+                        </button>
+                        <button
+                          onClick={() => handleStep(index, 'skipped')}
+                          disabled={savingStepIndex !== null}
+                          className="px-2 py-1 text-xs bg-yellow-600/20 text-yellow-400 rounded hover:bg-yellow-600/30 disabled:opacity-40"
+                        >
+                          Skip
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
                 {step.status && step.status !== 'pending' && (
