@@ -159,6 +159,7 @@ export interface TimelineEvent {
   action: string
   actor: string
   details?: string
+  context?: Record<string, string>
 }
 
 // Filter types

@@ -53,6 +53,23 @@ const statusStyles: Record<EventStatus, { bg: string; text: string }> = {
   false_positive: { bg: 'bg-slate-500/20', text: 'text-slate-400' },
 }
 
+function extractContext(event: SecurityEvent): Record<string, string> {
+  const m = event.metadata as Record<string, string | null> | null
+  if (!m) return {}
+  const ctx: Record<string, string> = {}
+  const ip = m.source_ip ?? m.attacker_ip
+  if (ip) ctx['Source IP'] = ip
+  const user = m.user ?? m.target_user
+  if (user) ctx['User'] = user
+  if (m.hostname) ctx['Host'] = m.hostname
+  if (m.port) ctx['Port'] = String(m.port)
+  if (m.attempts) ctx['Attempts'] = String(m.attempts)
+  if (m.signature) ctx['Signature'] = m.signature
+  if (m.protocol) ctx['Protocol'] = m.protocol
+  if (m.dest_ip) ctx['Dest IP'] = m.dest_ip
+  return ctx
+}
+
 function buildTimelineFromData(event: SecurityEvent, comments: AlertComment[]): TimelineEvent[] {
   const entries: TimelineEvent[] = [
     {
@@ -61,6 +78,7 @@ function buildTimelineFromData(event: SecurityEvent, comments: AlertComment[]): 
       action: 'Event ingested',
       actor: 'System',
       details: `${event.source} reported ${event.event_type}`,
+      context: extractContext(event),
     },
   ]
 
@@ -467,6 +485,16 @@ export default function AlertDetailModal({
                         <p className="text-sm text-slate-400">By: {item.actor}</p>
                         {item.details && (
                           <p className="text-sm text-slate-500 mt-1">{item.details}</p>
+                        )}
+                        {item.context && Object.keys(item.context).length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {Object.entries(item.context).map(([k, v]) => (
+                              <span key={k} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-slate-700/60 border border-slate-600/50">
+                                <span className="text-slate-400">{k}:</span>
+                                <span className="text-slate-200 font-mono">{v}</span>
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
