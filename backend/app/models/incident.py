@@ -83,7 +83,7 @@ class Incident(db.Model):
             "alert_rule_id": str(self.alert_rule_id) if self.alert_rule_id else None,
             "assigned_to": self.assigned_to,
             "event_count": self.event_count,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
+            "created_at": self.created_at.isoformat() + "Z" if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() + "Z" if self.updated_at else None,
+            "resolved_at": self.resolved_at.isoformat() + "Z" if self.resolved_at else None,
         }

@@ -47,7 +47,7 @@ class AlertRule(db.Model):
             'action': self.action.value,
             'action_config': self.action_config,
             'severity': self.severity,
-            'created_at': self.created_at.isoformat(),
-            'last_triggered': self.last_triggered.isoformat() if self.last_triggered else None,
+            'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
+            'last_triggered': self.last_triggered.isoformat() + 'Z' if self.last_triggered else None,
             'trigger_count': self.trigger_count
         }

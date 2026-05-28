@@ -133,7 +133,14 @@ class AlertEngine:
     ):
         from app.models import Incident, IncidentStatus, IncidentSeverity
 
-        # Check if an open incident exists for this rule
+        # Time-bound the merge: only reuse incidents updated recently.
+        # Bound = max(rule timeframe, 30 min) so quick-burst attacks group together
+        # but stale incidents from past days/months don't act as event magnets.
+        timeframe_str = (rule.condition or {}).get("timeframe")
+        delta = self.parse_timeframe(timeframe_str) if timeframe_str and timeframe_str != "any" else None
+        merge_window = max(delta, timedelta(minutes=30)) if delta else timedelta(minutes=30)
+        merge_cutoff = datetime.utcnow() - merge_window
+
         existing_incident = (
             Incident.query.filter(
                 Incident.alert_rule_id == rule.id,
@@ -144,6 +151,7 @@ class AlertEngine:
                         IncidentStatus.INVESTIGATING,
                     ]
                 ),
+                Incident.updated_at >= merge_cutoff,
             )
             .order_by(Incident.updated_at.desc())
             .first()
