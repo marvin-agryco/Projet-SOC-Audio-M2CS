@@ -1,8 +1,12 @@
 import uuid
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app import db
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class EventSeverity(enum.Enum):
@@ -35,7 +39,7 @@ class Event(db.Model):
     __tablename__ = "events"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, nullable=False, default=_utcnow)
     source = db.Column(db.Enum(EventSource), nullable=False, index=True)
     event_type = db.Column(db.String(100), nullable=False, index=True)
     severity = db.Column(db.Enum(EventSeverity), nullable=False, index=True)
@@ -47,9 +51,9 @@ class Event(db.Model):
     )
     assigned_to = db.Column(db.String(100))
     site_id = db.Column(db.String(50), index=True)  # For multi-site (audioprothésistes)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_utcnow)
     updated_at = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        db.DateTime, default=_utcnow, onupdate=_utcnow
     )
     incident_id = db.Column(
         UUID(as_uuid=True),
@@ -62,7 +66,7 @@ class Event(db.Model):
         """Serialize event to dictionary."""
         return {
             "id": str(self.id),
-            "timestamp": self.timestamp.isoformat(),
+            "timestamp": self.timestamp.isoformat() + "Z",
             "source": self.source.value,
             "event_type": self.event_type,
             "severity": self.severity.value,
@@ -89,7 +93,7 @@ class Event(db.Model):
         if "timestamp" in data:
             event.timestamp = datetime.fromisoformat(data["timestamp"])
         else:
-            event.timestamp = datetime.utcnow()
+            event.timestamp = _utcnow()
 
         if "raw_log" in data:
             event.raw_log = data["raw_log"]

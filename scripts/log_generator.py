@@ -8,7 +8,7 @@ import random
 import time
 import requests
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 # Configuration
@@ -230,6 +230,7 @@ def generate_attack_scenario():
         event["site_id"] = site
         event["metadata"] = {"attacker_ip": attacker_ip, "target_user": target_user}
         event["raw_log"] = generate_raw_log(event["source"], event["event_type"])
+        event["timestamp"] = datetime.now(timezone.utc).isoformat()
 
         success = send_event(event)
         status = "OK" if success else "FAILED"
