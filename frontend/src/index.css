@@ -9,6 +9,7 @@
 [data-theme="dark"] {
   --color-bg-primary: #0f172a;
   --color-bg-secondary: #1e293b;
+  --color-bg-tertiary: #0f172a;
   --color-bg-card: #1e293b;
   --color-bg-card-hover: #334155;
   --color-border: #334155;
@@ -24,6 +25,7 @@
 [data-theme="light"] {
   --color-bg-primary: #f8fafc;
   --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f1f5f9;
   --color-bg-card: #ffffff;
   --color-bg-card-hover: #f1f5f9;
   --color-border: #e2e8f0;

@@ -7,7 +7,8 @@ import { fmtDate } from '../utils/dateFormat'
 import { AlertRule, Incident } from '../types'
 import { fetchIncidents } from '../api'
 import SeverityBadge from './SeverityBadge'
-import { formatCondition, formatEventType, formatSource, formatTimeframe } from '../utils/alertRuleFormatters'
+import { formatEventType, formatSource, formatTimeframe } from '../utils/alertRuleFormatters'
+import { useLanguage } from '../context/LanguageContext'
 
 // ─── Severity colours ──────────────────────────────────────────────────────────
 const SEV_BORDER: Record<string, string> = {
@@ -88,6 +89,7 @@ interface Props {
 export default function AlertRuleDetailPanel({
   rule, isOpen, onClose, onToggle, onEdit, onDelete, onDuplicate, canManage
 }: Props) {
+  const { t } = useLanguage()
   const [incidents,        setIncidents]        = useState<Incident[]>([])
   const [incidentsLoading, setIncidentsLoading] = useState(false)
   const [incidentsError,   setIncidentsError]   = useState(false)
@@ -117,7 +119,11 @@ export default function AlertRuleDetailPanel({
 
   if (!rule) return null
 
-  const condParts = rule.condition as Record<string, unknown>
+  const condParts = (rule.condition as Record<string, unknown>) ?? {}
+  const condEventType = typeof condParts.event_type === 'string' ? condParts.event_type : ''
+  const condSource = typeof condParts.source === 'string' ? condParts.source : ''
+  const condCount = typeof condParts.count === 'number' ? condParts.count : 0
+  const condTimeframe = typeof condParts.timeframe === 'string' ? condParts.timeframe : ''
 
   return (
     <>
@@ -131,7 +137,7 @@ export default function AlertRuleDetailPanel({
 
       {/* Drawer */}
       <div className={clsx(
-        'fixed top-0 right-0 h-full w-[440px] z-50 flex flex-col',
+        'fixed top-0 right-0 bottom-0 h-screen w-[440px] z-50 flex flex-col',
         'bg-slate-900 border-l border-slate-700/60 shadow-2xl',
         'transition-transform duration-300 ease-in-out',
         isOpen ? 'translate-x-0' : 'translate-x-full'
@@ -148,7 +154,7 @@ export default function AlertRuleDetailPanel({
                   ? 'bg-green-500/15 text-green-400 border-green-500/25'
                   : 'bg-slate-600/30 text-slate-400 border-slate-600/30'
               )}>
-                {rule.enabled ? '● Active' : '○ Disabled'}
+                {rule.enabled ? `● ${t('panel.active')}` : `○ ${t('panel.disabled')}`}
               </span>
             </div>
             <h2 className="text-base font-semibold text-slate-100 leading-tight">{rule.name}</h2>
@@ -168,17 +174,17 @@ export default function AlertRuleDetailPanel({
           {/* Health strip */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: 'Total Triggers', value: rule.trigger_count.toString(), icon: TrendingUp, color: 'text-blue-400' },
+              { label: t('panel.totalTriggers'), value: rule.trigger_count.toString(), icon: TrendingUp, color: 'text-blue-400' },
               {
-                label: 'Last Triggered',
+                label: t('panel.lastTriggered'),
                 value: rule.last_triggered
                   ? formatDistanceToNow(new Date(rule.last_triggered), { addSuffix: true })
-                  : 'Never',
+                  : t('panel.never'),
                 icon: Clock,
                 color: rule.last_triggered ? 'text-orange-400' : 'text-slate-500',
               },
               {
-                label: 'Created',
+                label: t('panel.created'),
                 value: fmtDate(rule.created_at),
                 icon: Shield,
                 color: 'text-slate-400',
@@ -197,9 +203,9 @@ export default function AlertRuleDetailPanel({
           <div className="bg-slate-800/60 border border-slate-700/40 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Activity className="w-3.5 h-3.5" /> Incident Activity (7d)
+                <Activity className="w-3.5 h-3.5" /> {t('panel.incidentActivity')}
               </span>
-              <span className="text-xs text-slate-500">{incidents.length} incidents loaded</span>
+              <span className="text-xs text-slate-500">{incidents.length} {t('panel.incidentsLoaded')}</span>
             </div>
             {incidentsLoading
               ? <div className="h-11 flex items-center justify-center">
@@ -212,31 +218,31 @@ export default function AlertRuleDetailPanel({
           {/* Condition */}
           <div className="bg-slate-800/60 border border-slate-700/40 rounded-lg p-4">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              Detection Condition
+              {t('panel.detectionCondition')}
             </p>
             <div className="flex flex-wrap gap-2">
-              {condParts.event_type && condParts.event_type !== 'any' && (
+              {condEventType && condEventType !== 'any' && (
                 <span className="px-2.5 py-1 rounded-full bg-blue-500/15 border border-blue-500/25 text-blue-300 text-xs font-medium">
-                  {formatEventType(condParts.event_type as string)}
+                  {formatEventType(condEventType)}
                 </span>
               )}
-              {condParts.source && condParts.source !== 'any' && (
+              {condSource && condSource !== 'any' && (
                 <span className="px-2.5 py-1 rounded-full bg-purple-500/15 border border-purple-500/25 text-purple-300 text-xs font-medium">
-                  from {formatSource(condParts.source as string)}
+                  {t('panel.from')} {formatSource(condSource)}
                 </span>
               )}
-              {condParts.count && (
+              {condCount > 0 && (
                 <span className="px-2.5 py-1 rounded-full bg-yellow-500/15 border border-yellow-500/25 text-yellow-300 text-xs font-medium">
-                  ≥ {condParts.count as number} events
+                  ≥ {condCount} {t('panel.events')}
                 </span>
               )}
-              {condParts.timeframe && (
+              {condTimeframe && (
                 <span className="px-2.5 py-1 rounded-full bg-slate-600/40 border border-slate-600/40 text-slate-300 text-xs font-medium">
-                  within {formatTimeframe(condParts.timeframe as string)}
+                  {t('panel.within')} {formatTimeframe(condTimeframe)}
                 </span>
               )}
-              {!condParts.event_type && !condParts.source && (
-                <span className="text-xs text-slate-500">Any event</span>
+              {!condEventType && !condSource && (
+                <span className="text-xs text-slate-500">{t('panel.anyEvent')}</span>
               )}
             </div>
           </div>
@@ -244,7 +250,7 @@ export default function AlertRuleDetailPanel({
           {/* Action */}
           <div className="bg-slate-800/60 border border-slate-700/40 rounded-lg p-4">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              Action on Trigger
+              {t('panel.actionOnTrigger')}
             </p>
             <div className="flex items-center gap-2 mb-2">
               <ActionIcon action={rule.action} />
@@ -260,7 +266,7 @@ export default function AlertRuleDetailPanel({
           {/* Recent Incidents */}
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              Recent Incidents
+              {t('panel.recentIncidents')}
             </p>
 
             {incidentsLoading ? (
@@ -270,12 +276,12 @@ export default function AlertRuleDetailPanel({
             ) : incidentsError ? (
               <div className="text-center py-6 text-sm text-red-400 bg-red-500/10 rounded-lg border border-red-500/20">
                 <AlertTriangle className="w-5 h-5 mx-auto mb-2" />
-                Failed to load incidents
+                {t('panel.failedLoad')}
               </div>
             ) : incidents.length === 0 ? (
               <div className="text-center py-8 text-sm text-slate-500">
                 <CheckCircle className="w-6 h-6 mx-auto mb-2 text-slate-600" />
-                No incidents triggered yet
+                {t('panel.noIncidents')}
               </div>
             ) : (
               <div className="space-y-2">
@@ -295,7 +301,7 @@ export default function AlertRuleDetailPanel({
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-slate-500">
-                      <span>{inc.event_count} events</span>
+                      <span>{inc.event_count} {t('panel.events')}</span>
                       <span>{formatDistanceToNow(new Date(inc.created_at), { addSuffix: true })}</span>
                     </div>
                   </div>
@@ -310,11 +316,11 @@ export default function AlertRuleDetailPanel({
           <div className="border-t border-slate-700/60 px-5 py-3 flex gap-2">
             <button onClick={() => onEdit(rule)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 transition-colors text-xs font-medium">
-              <Edit2 className="w-3.5 h-3.5" /> Edit
+              <Edit2 className="w-3.5 h-3.5" /> {t('panel.edit')}
             </button>
             <button onClick={() => onDuplicate(rule)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700/40 text-slate-300 hover:bg-slate-700/60 transition-colors text-xs font-medium">
-              <Copy className="w-3.5 h-3.5" /> Duplicate
+              <Copy className="w-3.5 h-3.5" /> {t('panel.duplicate')}
             </button>
             <button onClick={() => onToggle(rule.id)}
               className={clsx(
@@ -324,13 +330,13 @@ export default function AlertRuleDetailPanel({
                   : 'bg-green-500/15 text-green-400 hover:bg-green-500/25'
               )}>
               {rule.enabled
-                ? <><PowerOff className="w-3.5 h-3.5" /> Disable</>
-                : <><Power className="w-3.5 h-3.5" /> Enable</>
+                ? <><PowerOff className="w-3.5 h-3.5" /> {t('panel.disable')}</>
+                : <><Power className="w-3.5 h-3.5" /> {t('panel.enable')}</>
               }
             </button>
             <button onClick={() => { onDelete(rule.id); onClose() }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/15 text-red-400 hover:bg-red-600/25 transition-colors text-xs font-medium ml-auto">
-              <Trash2 className="w-3.5 h-3.5" /> Delete
+              <Trash2 className="w-3.5 h-3.5" /> {t('panel.delete')}
             </button>
           </div>
         )}
