@@ -21,9 +21,9 @@ interface LayoutProps {
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, labelKey: 'sidebar.dashboard' },
-  { path: '/incidents', icon: Shield, labelKey: 'sidebar.incidents' },
-  { path: '/alerts', icon: Bell, labelKey: 'sidebar.alerts' },
   { path: '/events', icon: FileText, labelKey: 'sidebar.eventsLog' },
+  { path: '/alerts', icon: Bell, labelKey: 'sidebar.alerts' },
+  { path: '/incidents', icon: Shield, labelKey: 'sidebar.incidents' },
   { path: '/playbooks', icon: BookOpen, labelKey: 'sidebar.playbooks' },
   { path: '/sites', icon: Server, labelKey: 'sidebar.assets' },
 ]
