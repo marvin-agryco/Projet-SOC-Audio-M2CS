@@ -534,6 +534,69 @@ the model is instructed to treat that section as untrusted data, not as a direct
 
 ---
 
+## Realtime Events & Demo-Ready Experience (v1.11)
+
+### Realtime Events Page
+- **LIVE / OFFLINE pill** in header — reflects WebSocket connection state
+- **Socket subscription** to `new_event` — incoming events prepend on page 1; on other pages a "N new events — jump to top" banner appears
+- **Inline "Explain" affordance** on every `EventCard` row when `raw_log` is present — no need to open the drawer to trigger the LLM explainer
+- **Site filter dropdown** populated from `/api/endpoints` (replaces hard-coded list)
+- Theme-aware explanation block (removes hardcoded inline styles for light theme)
+- Per-row delete action with confirmation
+
+### Event Grouping & Burst Detection (`utils/eventGroup.ts`)
+- Groups events by `alertName + source` to fight alert fatigue on the Events page
+- **Burst detection**: flags groups where ≥5 events fire within ≤60s as a burst (`isBurst: true`)
+- Surfaces **unique source IPs** per group and **freshness** (last event within 5 min)
+- `EventCard` shows grouped count badge (`23x`) and a `BURST` chip when applicable, plus IP chips for the first N unique sources
+- Expand/collapse toggle on grouped rows
+
+### Incident PDF Export (`exportIncidentReport`)
+- **Export button** in `AlertDetailModal` (gated by `canExport` RBAC flag)
+- Multi-page PDF includes: overview, triage brief, MITRE tactics, timeline, comments
+- Locale-aware date formatting — `locale()` from `LanguageContext` threaded through both `export.ts` and `complianceReport.ts`
+- Shares html2pdf config and SVG icon set with the compliance suite
+
+### Alerts Tab Completion
+- **Full EN/FR i18n coverage** — Alert Rules tab, Triggered tab, rule form, `AlertRuleDetailPanel`, and `describeCondition()` now translate together; no more mixed-locale flashes when toggling 🇬🇧/🇫🇷
+- **CustomSelect dropdowns** replace native `<select>` in Alerts filters and the rule form — matches the dark-themed dropdown style used on Events
+- `--color-bg-tertiary` defined in both themes (was referenced but undefined, caused transparent dropdown backgrounds)
+- `AlertRuleDetailPanel` drawer fixed to `bottom-0 h-screen` so footer buttons render
+
+### Recommended Playbook CTA
+- `AlertDetailModal` pre-fetches active playbooks on open
+- **Recommended Playbook banner** above tabs with one-click Run — surfaces the best-match playbook by category/severity before the analyst has to dig
+- Shared `runPlaybook()` helper (de-duplicates with the picker)
+
+### Triage Brief Polish
+- Polling capped at ~60s; on timeout shows "AI worker not responding" with a Retry button
+- Enrichment status badge: green "X IPs enriched" / amber "Enrichment skipped — no API key"
+
+### Dashboard Polish
+- **LIVE pulse animation** on relevant KPI cards when realtime events arrive
+- Fake placeholders ("Avg. Time to Resolve: 12m", "Ingestion: 1.2 MB/s") replaced with i18n strings backed by real values
+- `/dashboard/stats` zero-fills every `EventSource` so the Sources card never reads "2/4" mid-demo
+- `/dashboard` zero-fills `by_source` with the 4 active sources (firewall / endpoint / application / ids)
+
+### Sidebar Demo Flow
+- Reordered to mirror the demo narration: **Dashboard → Events Log → Alerts → Incidents → Playbooks → Assets → Sites**
+- Presenter walks top-to-bottom without context switches
+
+### Timeline Context Chips
+- `AlertDetailModal` timeline tab now renders context chips on each entry (status, source, severity) for at-a-glance scanning
+
+### Time-bound Incident Merge
+- Alert engine merges new matches into an existing open incident only when within the rule's timeframe window — prevents one stale incident from absorbing months of unrelated bursts
+
+### Timestamp Hygiene
+- `Event.timestamp` defaults to tz-aware UTC; log generator writes UTC
+- Alert and Incident timestamps serialize with explicit `Z` suffix so the JS frontend always parses as UTC
+
+### Playbook Steps UX
+- Per-step "Saving…" spinner on Complete/Skip with success/error toast feedback
+
+---
+
 ## Planned Features (Roadmap)
 
 ### v1.9 (Planned)
@@ -564,3 +627,4 @@ the model is instructed to treat that section as untrusted data, not as a direct
 | v1.8 | 2026-03 | AI Triage Assistant: TriageBrief model, Celery pipeline, IP enrichment (VT+AbuseIPDB), Ollama LLM, TriageBriefPanel with confidence meter + MITRE chips + accept/edit/dismiss |
 | v1.9.1 | 2026-03 | Raw Log Explainer: "Explain this log" button on every event, sync LLM call, [UNTRUSTED LOG DATA] prompt injection protection |
 | v1.10 | 2026-05 | Compliance Export Suite: scope/format selector, streaming CSV backend, audit-ready PDF (cover + summary + SHA-256), Glass Chronos dual-calendar date picker with quick presets and horizontal time sliders |
+| v1.11 | 2026-06 | Realtime Events page (LIVE pill, socket subscription, new-event banner, inline Explain), event grouping + burst detection, Incident PDF export, Recommended Playbook CTA, Alerts tab i18n completion + CustomSelect dropdowns, demo-flow sidebar reorder, timeline context chips, time-bound incident merge, UTC `Z` timestamp hygiene |

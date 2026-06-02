@@ -206,7 +206,7 @@ None
 
 ---
 
-## Current Milestone: Version 1.10 — Compliance Export Suite — COMPLETED
+## Version 1.10 — Compliance Export Suite — COMPLETED
 
 ### Completed ✓
 
@@ -216,6 +216,27 @@ None
 - [x] **Classic PDF improvements** (`utils/export.ts`) — page-break rules pulled out of `@media print` (html2pdf uses canvas, not print), pagebreak mode `['css', 'legacy']` with explicit avoid array, Time/Site column font sizes bumped to 10.5px and columns widened
 - [x] **Glass Chronos date picker** (`components/DateRangePicker.tsx`) — dual-month calendar with soft-blue range tint, quick presets (Last 15m/1h/24h/7d), horizontal H/M time sliders with custom CSS thumb (white ring + blue glow), glassmorphic surface (`rgba(15,23,42,0.6)` + `blur(12px)` + thin white border), active-side highlight tracking next-click target
 - [x] **CSS** (`index.css`) — `.chronos-slider` styles with both `::-webkit-slider-thumb` and `::-moz-range-thumb` (thumbs don't inherit, must define both)
+
+---
+
+## Current Milestone: Version 1.11 — Realtime Events & Demo-Ready UX — COMPLETED
+
+### Completed ✓
+
+- [x] **Realtime Events page** (`pages/Events.tsx`) — LIVE/OFFLINE pill driven by socket state, subscribes to `new_event` and prepends on page 1 (banner on other pages), inline "Explain" button per row when `raw_log` is present, site filter dropdown populated from `/api/endpoints`, theme-aware explanation block
+- [x] **Event grouping & burst detection** (`utils/eventGroup.ts`) — groups events by `alertName + source`, flags bursts (≥5 events in ≤60s), surfaces unique source IPs and freshness; `EventCard` shows grouped count badge, BURST chip, IP chips, expand/collapse toggle
+- [x] **Alerts backend expansion** (`routes/alerts.py`, `services/alert_engine.py`) — additional grouped/source filtering helpers used by the dashboard; `api.ts` typed wrappers for the new endpoints (`fetchEndpoints` with limit, realtime hooks, source IP extraction)
+- [x] **Incident PDF export** (`utils/export.ts → exportIncidentReport`) — Export button in `AlertDetailModal` gated by `canExport`; multi-page PDF covers overview, triage brief, MITRE tactics, timeline, comments; locale threaded into `export.ts` and `complianceReport.ts` via `LanguageContext.locale()`
+- [x] **Alerts tab i18n completion** — translations wired through Alert Rules tab, Triggered tab, rule form, `AlertRuleDetailPanel`, and `describeCondition()`; native `<select>` replaced with `CustomSelect` in filters and rule form; `--color-bg-tertiary` defined in both themes; `AlertRuleDetailPanel` drawer fixed to `bottom-0 h-screen`
+- [x] **Recommended Playbook CTA** (`AlertDetailModal.tsx`) — pre-fetches active playbooks on open, shows a one-click "Recommended Playbook" banner above tabs, shared `runPlaybook()` helper
+- [x] **Triage Brief polish** (`TriageBriefPanel.tsx`) — polling capped at ~60s with "AI worker not responding" + Retry on timeout; enrichment status badge (green X IPs / amber skipped)
+- [x] **Dashboard polish** — LIVE pulse animation on KPI cards on realtime arrival; fake placeholders replaced with i18n strings backed by real values; `/dashboard/stats` zero-fills every `EventSource`; `/dashboard` zero-fills `by_source` with the 4 active sources
+- [x] **Sidebar reorder** — Dashboard → Events Log → Alerts → Incidents → Playbooks → Assets → Sites to match demo narration
+- [x] **Timeline context chips** — `AlertDetailModal` timeline tab renders status / source / severity chips per entry
+- [x] **Time-bound incident merge** — alert engine only merges into an existing open incident within the rule's timeframe window
+- [x] **UTC timestamp hygiene** — `Event.timestamp` defaults to tz-aware UTC; log generator writes UTC; alert / incident timestamps serialize with explicit `Z` suffix
+- [x] **Playbook steps UX** — per-step "Saving…" spinner on Complete/Skip with success/error toast feedback
+- [x] **Seed data** — `init_demo_alert_rules` and `init_demo_playbooks` wired through `run.py`; `canExport=true` for analysts; log_generator metadata key rename to `source_ip`
 
 ---
 
@@ -232,3 +253,4 @@ None
 - 2026-03-14: **V1.8 COMPLETED** — AI Triage Assistant: TriageBrief model + Celery task (VT/AbuseIPDB enrichment + Ollama LLM), TriageBriefPanel React component (confidence meter, MITRE chips, accept/edit/dismiss), Ollama Docker service, 54 new tests all passing.
 - 2026-02-28: **V1.7 COMPLETED** — Suricata IDS as 4th event source, ActivityHeatmap V3 (date-based grid, severity breakdown, click-to-filter, 7d/30d toggle), StatCard Mission Critical redesign (sparklines, statusColor, subValue), Events filter cleanup, light theme opacity variant fixes. Branch `fill-spaceV3` merged into master.
 - 2026-05-28: **V1.10 COMPLETED** — Compliance Export Suite: ExportDialog (scope/format selector + live preview), backend streaming CSV + summary endpoints with shared `_build_event_query` helper, audit-ready PDF (cover with SHA-256 + summary + paginated tables), Glass Chronos dual-calendar date picker with quick presets and horizontal time sliders. SVG icons replace emojis in PDFs; page-break rules moved out of `@media print` for html2pdf.
+- 2026-06-02: **V1.11 COMPLETED** — Realtime Events page (LIVE pill, socket subscription, new-event banner, inline Explain, site filter), event grouping + burst detection (`eventGroup.ts`), Incident PDF export (`exportIncidentReport`), Recommended Playbook CTA on AlertDetailModal, Alerts tab i18n completion + CustomSelect dropdowns + `--color-bg-tertiary` fix, demo-flow sidebar reorder, timeline context chips, time-bound incident merge, UTC `Z` timestamp hygiene, LIVE pulse animation on KPI cards, 4-source zero-fill on dashboard stats, seed data wired for demo rules + playbooks.

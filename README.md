@@ -51,15 +51,17 @@ Incident créé → Enrichissement IP (VT + AbuseIPDB) → LLM local (qwen2.5:1.
 
 ### Autres Fonctionnalités
 
-- **Dashboard temps réel** avec WebSocket, KPI par sévérité, indicateurs de tendance (% vs J-1), sparklines
+- **Dashboard temps réel** avec WebSocket, KPI par sévérité, indicateurs de tendance (% vs J-1), sparklines, pulse animation sur les KPI quand des événements arrivent
+- **Page Events temps réel (v1.11)** : pill LIVE / OFFLINE, bannière "N new events" hors page 1, dropdown de filtre par site, bouton "Explain" inline sur chaque ligne
+- **Groupement d'événements & détection de bursts (v1.11)** : regroupement par règle + source, badge `BURST` quand ≥5 événements en ≤60s, chips d'IPs sources uniques
 - **Analytics avancés** : heatmap d'activité V3 (calendrier réel, sévérité par cellule, click-to-filter), top source IPs avec actions OSINT (Whois, VirusTotal, Block), severity trend chart, donut interactif
 - **4 sources d'événements** : Firewall, Endpoints, GLPI (application), Suricata IDS
 - **Explication IA des logs bruts** : bouton "Explain this log" sur chaque événement → explication en langage naturel en ~4s (protection prompt injection via délimiteur `[UNTRUSTED LOG DATA]`)
 - **Gestion des événements** avec filtres, recherche, assignation, groupement d'alertes, marquage faux positif rapide
 - **Authentification JWT** avec rôles (admin, analyst, supervisor)
-- **Interface bilingue** : toggle EN/FR en un clic, persisté en localStorage
-- **Export multi-format** : CSV (streaming backend), JSON, PDF rapide, **PDF compliance audit-ready** (cover + SHA-256 + résumé + tableaux paginés) ; Glass Chronos date picker avec presets (Last 15m / 1h / 24h / 7d) et sliders horizontaux H/M
-- **Playbooks** avec exécution étape par étape et intégration directe depuis les alertes
+- **Interface bilingue** : toggle EN/FR en un clic, persisté en localStorage — couverture complète sur l'onglet Alerts (règles, formulaire, triggered) depuis v1.11
+- **Export multi-format** : CSV (streaming backend), JSON, PDF rapide, **PDF compliance audit-ready** (cover + SHA-256 + résumé + tableaux paginés), **PDF Incident** (overview / triage / MITRE / timeline / commentaires) depuis le détail incident ; Glass Chronos date picker avec presets (Last 15m / 1h / 24h / 7d) et sliders horizontaux H/M
+- **Playbooks** avec exécution étape par étape, intégration directe depuis les alertes, et **bannière "Recommended Playbook"** dans le détail incident pour un Run en un clic (v1.11)
 - **Infrastructure simulée** : Wazuh SIEM + endpoints + firewall + Suricata IDS + GLPI
 
 ## Stack Technique
@@ -151,6 +153,8 @@ python3 scripts/log_generator.py --backfill --days 30 --count 2000  # Historique
 - [x] ActivityHeatmap V3 + StatCard Mission Critical + Suricata IDS (v1.7)
 - [x] Assistant de Triage IA (v1.8) — LLM local Qwen2.5:1.5B, enrichissement IP, panneau interactif
 - [x] Explication IA des logs bruts (v1.9.1) — bouton "Explain", protection prompt injection
+- [x] Suite Compliance Export (v1.10) — PDF audit-ready avec SHA-256, Glass Chronos date picker
+- [x] Page Events temps réel + groupement / burst detection + PDF Incident (v1.11)
 - [x] Rapport technique complet
 - [ ] Guide de déploiement & d'utilisation
 - [ ] Vidéo de démonstration
