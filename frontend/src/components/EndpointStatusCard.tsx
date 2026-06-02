@@ -76,7 +76,7 @@ function EndpointDetailModal({ endpoint, isOpen, onClose }: EndpointDetailModalP
                     <div className="p-4 bg-slate-700/30 rounded-lg">
                         <p className="text-xs text-slate-500 mb-1">{t('endpoints.lastSeen')}</p>
                         <p className="text-slate-200">
-                            {new Date(endpoint.last_seen).toLocaleString(locale())}
+                            {endpoint.last_seen ? new Date(endpoint.last_seen).toLocaleString(locale()) : '—'}
                         </p>
                     </div>
                     <div className="p-4 bg-slate-700/30 rounded-lg">

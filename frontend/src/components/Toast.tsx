@@ -11,12 +11,6 @@ interface Toast {
   duration?: number
 }
 
-interface ToastContextValue {
-  toasts: Toast[]
-  addToast: (type: ToastType, message: string, duration?: number) => void
-  removeToast: (id: string) => void
-}
-
 // Toast store (simple pub/sub pattern)
 let toasts: Toast[] = []
 let listeners: Array<(toasts: Toast[]) => void> = []

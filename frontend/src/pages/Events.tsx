@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useRole } from '../context/RoleContext'
 import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../hooks/useSocket'
 import clsx from 'clsx'
 import { Search, Filter, ChevronLeft, ChevronRight, LayoutList, LayoutGrid, Wand2, Loader2, Download, Radio } from 'lucide-react'
-import { fetchEvents, updateEventStatus, explainEvent, deleteEvent, fetchEndpoints } from '../api'
+import { fetchEvents, updateEventStatus, explainEvent, deleteEvent, fetchEndpoints, fetchExportSummary, ExportSummary } from '../api'
 import { SecurityEvent, EventStatus } from '../types'
 import EventCard from '../components/EventCard'
 import SeverityBadge from '../components/SeverityBadge'
 import StatusBadge from '../components/StatusBadge'
 import CustomSelect from '../components/CustomSelect'
 import ExportDialog from '../components/ExportDialog'
-import { fmtDateTime } from '../utils/dateFormat'
+import { fmtDateTime, fmtTime } from '../utils/dateFormat'
+import { groupEvents } from '../utils/eventGroup'
 
 export default function Events() {
   const { canExport, effectiveRole } = useRole()
@@ -22,6 +23,7 @@ export default function Events() {
   const locationState = location.state as { site_id?: string; severity?: string } | null
 
   const [events, setEvents] = useState<SecurityEvent[]>([])
+  const [totalEvents, setTotalEvents] = useState(0)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -32,6 +34,8 @@ export default function Events() {
   const [rowExplainingId, setRowExplainingId] = useState<string | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [newCount, setNewCount] = useState(0)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const [summary, setSummary] = useState<ExportSummary | null>(null)
 
   // Filters — pre-populated from navigation state (e.g. from endpoint "View Logs")
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
@@ -47,6 +51,19 @@ export default function Events() {
     loadEvents()
     if (page === 1) setNewCount(0)
   }, [page, perPage, search, siteIdFilter, severityFilter, statusFilter, sourceFilter])
+
+  // Global facet counts (refreshed every 30s) — drives header context + dropdown counts
+  useEffect(() => {
+    let active = true
+    const load = () => {
+      fetchExportSummary({})
+        .then((s) => { if (active) setSummary(s) })
+        .catch(() => {})
+    }
+    load()
+    const id = setInterval(load, 30000)
+    return () => { active = false; clearInterval(id) }
+  }, [])
 
   // Populate site filter options once
   useEffect(() => {
@@ -79,6 +96,7 @@ export default function Events() {
           if (prev.some((e) => e.id === event.id)) return prev
           return [event, ...prev].slice(0, perPage)
         })
+        setNewCount((c) => c + 1)
       } else {
         setNewCount((c) => c + 1)
       }
@@ -101,6 +119,7 @@ export default function Events() {
       })
       setEvents(data.events)
       setTotalPages(data.pages)
+      setTotalEvents(data.total)
     } catch (error) {
       console.error('Failed to load events:', error)
     } finally {
@@ -153,11 +172,31 @@ export default function Events() {
     }
   }
 
+  // Group events client-side (5 min sliding window). Single events render as a "group of 1".
+  const groups = useMemo(() => groupEvents(events), [events])
+  const groupedCount = groups.length
+
+  function toggleGroup(key: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // Facet counts: use global summary (snapshot every 30s) — gives users a sense
+  // of total volume per facet regardless of currently-applied filters.
+  const sevCount = (k: string) => summary?.by_severity?.[k] ?? 0
+  const srcCount = (k: string) => summary?.by_source?.[k] ?? 0
+  const statCount = (k: string) => summary?.by_status?.[k] ?? 0
+  const fmtCount = (n: number) => (n > 999 ? `${(n / 1000).toFixed(1)}k` : String(n))
+
   return (
     <div className="flex gap-6">
       {/* Events List */}
       <div className="flex-1">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold">Security Events</h1>
             <span
@@ -200,6 +239,42 @@ export default function Events() {
           )}
         </div>
 
+        {/* F-009: Vocabulary subtitle */}
+        <p className="text-sm text-slate-400 mb-3">
+          Raw events from your monitored infrastructure. Correlated alerts appear in <span className="text-slate-200">Alerts</span>; investigated cases in <span className="text-slate-200">Incidents</span>.
+        </p>
+
+        {/* F-005: Volume context */}
+        {summary && (
+          <div className="flex items-center gap-2 flex-wrap text-xs text-slate-400 mb-3">
+            <span className="text-slate-300">
+              Showing <span className="font-semibold text-white">{totalEvents.toLocaleString()}</span>
+              {totalEvents !== summary.total && (
+                <> of <span className="font-semibold text-slate-300">{summary.total.toLocaleString()}</span></>
+              )} events
+            </span>
+            {(totalEvents !== summary.total) && (
+              <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300">filter applied</span>
+            )}
+            <span className="text-slate-600">·</span>
+            <span>
+              {Object.entries(summary.by_source)
+                .filter(([, n]) => n > 0)
+                .sort((a, b) => b[1] - a[1])
+                .map(([k, n]) => `${k}: ${fmtCount(n)}`)
+                .join(' · ')}
+            </span>
+            {summary.first_event && summary.last_event && (
+              <>
+                <span className="text-slate-600">·</span>
+                <span>
+                  {fmtTime(summary.first_event)} → {fmtTime(summary.last_event)}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Filters */}
         <div className="bg-gray-800 rounded-lg p-4 mb-4 border border-gray-700">
           <form onSubmit={handleSearch} className="flex flex-wrap gap-4">
@@ -221,11 +296,11 @@ export default function Events() {
               onChange={(v) => { setSeverityFilter(v); setPage(1) }}
               placeholder="All Severities"
               options={[
-                { value: '', label: 'All Severities' },
-                { value: 'critical', label: 'Critical' },
-                { value: 'high', label: 'High' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'low', label: 'Low' },
+                { value: '', label: `All Severities${summary ? ` (${fmtCount(summary.total)})` : ''}` },
+                { value: 'critical', label: `Critical${summary ? ` (${fmtCount(sevCount('critical'))})` : ''}` },
+                { value: 'high', label: `High${summary ? ` (${fmtCount(sevCount('high'))})` : ''}` },
+                { value: 'medium', label: `Medium${summary ? ` (${fmtCount(sevCount('medium'))})` : ''}` },
+                { value: 'low', label: `Low${summary ? ` (${fmtCount(sevCount('low'))})` : ''}` },
               ]}
             />
 
@@ -235,10 +310,10 @@ export default function Events() {
               placeholder="All Status"
               options={[
                 { value: '', label: 'All Status' },
-                { value: 'new', label: 'New' },
-                { value: 'investigating', label: 'Investigating' },
-                { value: 'resolved', label: 'Resolved' },
-                { value: 'false_positive', label: 'False Positive' },
+                { value: 'new', label: `New${summary ? ` (${fmtCount(statCount('new'))})` : ''}` },
+                { value: 'investigating', label: `Investigating${summary ? ` (${fmtCount(statCount('investigating'))})` : ''}` },
+                { value: 'resolved', label: `Resolved${summary ? ` (${fmtCount(statCount('resolved'))})` : ''}` },
+                { value: 'false_positive', label: `False Positive${summary ? ` (${fmtCount(statCount('false_positive'))})` : ''}` },
               ]}
             />
 
@@ -248,10 +323,10 @@ export default function Events() {
               placeholder="All Sources"
               options={[
                 { value: '', label: 'All Sources' },
-                { value: 'firewall', label: 'Firewall' },
-                { value: 'ids', label: 'IDS' },
-                { value: 'endpoint', label: 'Endpoint' },
-                { value: 'application', label: 'Application' },
+                { value: 'firewall', label: `Firewall${summary ? ` (${fmtCount(srcCount('firewall'))})` : ''}` },
+                { value: 'ids', label: `IDS${summary ? ` (${fmtCount(srcCount('ids'))})` : ''}` },
+                { value: 'endpoint', label: `Endpoint${summary ? ` (${fmtCount(srcCount('endpoint'))})` : ''}` },
+                { value: 'application', label: `Application${summary ? ` (${fmtCount(srcCount('application'))})` : ''}` },
               ]}
             />
 
@@ -286,36 +361,66 @@ export default function Events() {
           </form>
         </div>
 
-        {/* New events notice */}
+        {/* F-008: New events banner */}
         {newCount > 0 && (
           <button
-            onClick={() => { setPage(1); setNewCount(0) }}
+            onClick={() => { setPage(1); setNewCount(0); loadEvents() }}
             className="w-full mb-3 px-4 py-2 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
           >
             <Radio className="w-3.5 h-3.5 animate-pulse" />
-            {newCount} new event{newCount === 1 ? '' : 's'} — jump to page 1
+            +{newCount} new event{newCount === 1 ? '' : 's'} since you arrived — refresh page 1
           </button>
         )}
 
-        {/* Events List */}
+        {/* Events list (grouped) */}
         {loading ? (
           <div className="text-center py-12">Loading...</div>
         ) : events.length === 0 ? (
           <div className="text-center py-12 text-gray-400">No events found</div>
         ) : (
-          <div className={viewMode === 'grid' ? 'grid grid-cols-2 xl:grid-cols-4 gap-3' : 'space-y-2'}>
-            {events.map((event) => (
-              <div key={event.id} className="group">
-                <EventCard
-                  event={event}
-                  onClick={() => { setSelectedEvent(event); setExplanation(null); setExplainError(null) }}
-                  onDelete={(e) => { e.stopPropagation(); handleDelete(event.id) }}
-                  onExplain={(e) => { e.stopPropagation(); handleRowExplain(event) }}
-                  explaining={rowExplainingId === event.id}
-                />
+          <>
+            {groupedCount < events.length && (
+              <div className="text-xs text-slate-500 mb-2">
+                {events.length} events grouped into {groupedCount} {groupedCount === 1 ? 'card' : 'cards'} (5-minute window). Click <span className="text-blue-300 font-semibold">N×</span> badges to expand.
               </div>
-            ))}
-          </div>
+            )}
+            <div className={viewMode === 'grid' ? 'grid grid-cols-2 xl:grid-cols-4 gap-3' : 'space-y-2'}>
+              {groups.map((g) => {
+                const isExpanded = expandedGroups.has(g.key)
+                return (
+                  <div key={g.key} className="space-y-2">
+                    <div className="group">
+                      <EventCard
+                        event={g.representative}
+                        group={g}
+                        expanded={isExpanded}
+                        onToggleExpand={(e) => { e.stopPropagation(); toggleGroup(g.key) }}
+                        onClick={() => { setSelectedEvent(g.representative); setExplanation(null); setExplainError(null) }}
+                        onDelete={(e) => { e.stopPropagation(); handleDelete(g.representative.id) }}
+                        onExplain={(e) => { e.stopPropagation(); handleRowExplain(g.representative) }}
+                        explaining={rowExplainingId === g.representative.id}
+                      />
+                    </div>
+                    {isExpanded && g.count > 1 && (
+                      <div className="pl-4 border-l-2 border-blue-500/30 space-y-2">
+                        {g.events.map((child) => (
+                          <div key={child.id} className="group">
+                            <EventCard
+                              event={child}
+                              onClick={() => { setSelectedEvent(child); setExplanation(null); setExplainError(null) }}
+                              onDelete={(e) => { e.stopPropagation(); handleDelete(child.id) }}
+                              onExplain={(e) => { e.stopPropagation(); handleRowExplain(child) }}
+                              explaining={rowExplainingId === child.id}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </>
         )}
 
         {/* Pagination */}

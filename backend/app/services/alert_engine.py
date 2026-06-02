@@ -125,6 +125,20 @@ class AlertEngine:
 
         if triggered:
             db.session.commit()
+            try:
+                from app import socketio
+                for entry in triggered:
+                    socketio.emit('rule_triggered', {
+                        'rule_id': entry['rule'].get('id'),
+                        'rule_name': entry['rule'].get('name'),
+                        'rule_severity': entry['rule'].get('severity'),
+                        'incident_id': entry['incident'].get('id'),
+                        'incident_title': entry['incident'].get('title'),
+                        'event_count': entry['incident'].get('event_count'),
+                        'triggered_at': entry['triggered_at'] + 'Z',
+                    })
+            except Exception:
+                pass
 
         return triggered
 

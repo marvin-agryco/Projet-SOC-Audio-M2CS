@@ -23,8 +23,9 @@ const roles: { value: JwtRole; label: string }[] = [
 export default function TopBar({
     systemStatus = 'online',
     monitoringCount = 30,
-    alertCount = 0,
+    alertCount: _alertCount = 0,
 }: TopBarProps) {
+    void _alertCount
     const { theme, toggleTheme } = useTheme()
     const { user, logout } = useAuth()
     const { effectiveRole, setEffectiveRole } = useRole()

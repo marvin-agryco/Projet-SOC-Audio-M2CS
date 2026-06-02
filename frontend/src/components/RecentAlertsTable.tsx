@@ -39,10 +39,11 @@ export default function RecentAlertsTable({
     alerts,
     isLive = true,
     onAlertClick,
-    onAssigneeClick,
+    onAssigneeClick: _onAssigneeClick,
     filteredSource,
     filterLabel,
 }: RecentAlertsTableProps) {
+    void _onAssigneeClick
     const { canAssign } = useRole()
     const { user } = useAuth()
     const { t } = useLanguage()

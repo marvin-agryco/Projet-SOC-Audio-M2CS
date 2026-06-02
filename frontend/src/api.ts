@@ -147,6 +147,71 @@ export async function toggleAlertRule(id: string): Promise<AlertRule> {
   return data
 }
 
+// Alert dry-run + triggered history
+export interface AlertTestResult {
+  hours: number
+  threshold: number
+  matched: number
+  would_fire: boolean
+  samples: Array<{
+    id: string
+    timestamp: string
+    severity: string
+    source: string
+    event_type: string
+    description: string
+    site_id: string | null
+  }>
+}
+
+export async function testAlertCondition(
+  condition: Record<string, unknown>,
+  hours = 24
+): Promise<AlertTestResult> {
+  const { data } = await api.post('/alerts/rules/test', { condition }, { params: { hours } })
+  return data
+}
+
+export async function testAlertRule(ruleId: string, hours = 24): Promise<AlertTestResult> {
+  const { data } = await api.post(`/alerts/rules/${ruleId}/test`, {}, { params: { hours } })
+  return data
+}
+
+export interface TriggeredInstance {
+  incident_id: string
+  rule_id: string
+  rule_name: string
+  rule_severity: string | null
+  rule_enabled: boolean
+  incident_title: string
+  incident_status: string
+  incident_severity: string
+  event_count: number
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface TriggeredSummary {
+  rule_id: string
+  rule_name: string
+  fired_count: number
+  last_fired: string | null
+}
+
+export async function fetchTriggeredAlerts(params?: {
+  hours?: number
+  rule_id?: string
+  limit?: number
+}): Promise<{
+  hours: number
+  total: number
+  instances: TriggeredInstance[]
+  summary: TriggeredSummary[]
+}> {
+  const { data } = await api.get('/alerts/triggered', { params })
+  return data
+}
+
 // Endpoints
 export async function fetchEndpoints(params?: {
   status?: string
