@@ -9,6 +9,7 @@ interface ComplianceContext {
   scope: string
   reportId: string
   generatedAt: Date
+  locale?: string
 }
 
 // Inline SVG icons — render identically across machines (no emoji font issues)
@@ -255,10 +256,10 @@ const styles = `
   .audit-hash { word-break: break-all; }
 `
 
-function fmt(date: string | null | Date | undefined): string {
+function fmt(date: string | null | Date | undefined, locale: string = 'fr-FR'): string {
   if (!date) return '—'
   const d = typeof date === 'string' ? new Date(date) : date
-  return d.toLocaleString('fr-FR', {
+  return d.toLocaleString(locale, {
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   })
@@ -311,7 +312,7 @@ function renderCover(summary: ExportSummary, ctx: ComplianceContext, eventCount:
           </div>
           <div>
             <div class="meta-item-label">Generated</div>
-            <div class="meta-item-value">${fmt(ctx.generatedAt)}</div>
+            <div class="meta-item-value">${fmt(ctx.generatedAt, ctx.locale)}</div>
           </div>
           <div>
             <div class="meta-item-label">Prepared By</div>
@@ -323,7 +324,7 @@ function renderCover(summary: ExportSummary, ctx: ComplianceContext, eventCount:
           </div>
           <div style="grid-column: 1 / -1;">
             <div class="meta-item-label">Time Range</div>
-            <div class="meta-item-value">${fmt(summary.first_event)} → ${fmt(summary.last_event)}</div>
+            <div class="meta-item-value">${fmt(summary.first_event, ctx.locale)} → ${fmt(summary.last_event, ctx.locale)}</div>
           </div>
           <div style="grid-column: 1 / -1;">
             <div class="meta-item-label">Filters Applied</div>
@@ -407,7 +408,7 @@ function renderEventsTable(events: SecurityEvent[], ctx: ComplianceContext): str
 
   const rows = events.map(e => `
     <tr>
-      <td class="mono">${fmt(e.timestamp)}</td>
+      <td class="mono">${fmt(e.timestamp, ctx.locale)}</td>
       <td><span class="badge badge-${e.severity}">${e.severity}</span></td>
       <td>${e.source}</td>
       <td>${(e.description || '').slice(0, 180)}</td>
@@ -451,7 +452,7 @@ function renderSignoff(ctx: ComplianceContext, hash: string): string {
         <div class="section-title">Statement of Authenticity</div>
         <p style="font-size: 11px; color: #334155; line-height: 1.7;">
           This report was generated automatically from the AudioSOC platform on
-          <strong>${fmt(ctx.generatedAt)}</strong> by <strong>${ctx.analyst}</strong>
+          <strong>${fmt(ctx.generatedAt, ctx.locale)}</strong> by <strong>${ctx.analyst}</strong>
           (${ctx.role}). The data reflects security events recorded in the SOC
           database matching the filters listed on the cover page.
           The SHA-256 hash below covers the dataset payload and allows independent

@@ -12,6 +12,7 @@ import { SecurityEvent } from '../types'
 import { exportEventsToCSV, exportEventsReport, exportToJSON } from '../utils/export'
 import { exportComplianceReport } from '../utils/complianceReport'
 import DateRangePicker from './DateRangePicker'
+import { useLanguage } from '../context/LanguageContext'
 
 type Scope = 'page' | 'all' | 'range'
 type Format = 'csv' | 'pdf-compliance' | 'pdf-quick' | 'json'
@@ -43,6 +44,7 @@ export default function ExportDialog({
   analyst,
   role,
 }: Props) {
+  const { locale } = useLanguage()
   const [scope, setScope] = useState<Scope>('page')
   const [format, setFormat] = useState<Format>('csv')
   const [rangeStart, setRangeStart] = useState<Date>(() => {
@@ -136,7 +138,7 @@ export default function ExportDialog({
         medium: events.filter(e => e.severity === 'medium').length,
         low: events.filter(e => e.severity === 'low').length,
       }
-      exportEventsReport(events, stats)
+      exportEventsReport(events, stats, locale())
     } else if (format === 'pdf-compliance') {
       const effectiveSummary: ExportSummary = summaryData ?? {
         total: events.length,
@@ -166,6 +168,7 @@ export default function ExportDialog({
         scope: scopeLabel,
         reportId: generateReportId(),
         generatedAt: new Date(),
+        locale: locale(),
       })
     }
   }

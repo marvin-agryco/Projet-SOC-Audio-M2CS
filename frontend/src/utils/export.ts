@@ -1,4 +1,4 @@
-import { SecurityEvent } from '../types'
+import { SecurityEvent, TimelineEvent, AlertComment, TriageBrief } from '../types'
 import html2pdf from 'html2pdf.js'
 
 // Inline SVG icons (replace emojis — emojis don't center inside flex boxes)
@@ -498,7 +498,7 @@ const pdfStyles = `
 /**
  * Generate PDF using html2pdf.js for direct download
  */
-export async function exportToPDF(title: string, content: HTMLElement | string): Promise<void> {
+export async function exportToPDF(title: string, content: HTMLElement | string, locale: string = 'fr-FR'): Promise<void> {
   const htmlContent = typeof content === 'string' ? content : content.innerHTML
 
   // Create a temporary container
@@ -525,7 +525,7 @@ export async function exportToPDF(title: string, content: HTMLElement | string):
                 <span class="header-meta-label">Report:</span>${title}
               </div>
               <div class="header-meta-item">
-                <span class="header-meta-label">Generated:</span>${new Date().toLocaleString('fr-FR', {
+                <span class="header-meta-label">Generated:</span>${new Date().toLocaleString(locale, {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
@@ -544,7 +544,7 @@ export async function exportToPDF(title: string, content: HTMLElement | string):
           </div>
           <div class="footer-right">
             <div class="confidential">Confidential</div>
-            <div class="generated-info">Internal Use Only • ${new Date().toLocaleDateString('fr-FR')}</div>
+            <div class="generated-info">Internal Use Only • ${new Date().toLocaleDateString(locale)}</div>
           </div>
         </div>
       </div>
@@ -590,7 +590,8 @@ export async function exportToPDF(title: string, content: HTMLElement | string):
  */
 export function exportEventsReport(
   events: SecurityEvent[],
-  stats?: { total: number; critical: number; high: number; medium: number; low: number }
+  stats?: { total: number; critical: number; high: number; medium: number; low: number },
+  locale: string = 'fr-FR'
 ): void {
   const statsHtml = stats
     ? `
@@ -664,7 +665,7 @@ export function exportEventsReport(
             .map(
               (e) => `
             <tr>
-              <td><div class="cell-center"><div class="cell-center-inner" style="text-align: left;"><span class="timestamp">${new Date(e.timestamp).toLocaleString('fr-FR', {
+              <td><div class="cell-center"><div class="cell-center-inner" style="text-align: left;"><span class="timestamp">${new Date(e.timestamp).toLocaleString(locale, {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
@@ -686,7 +687,152 @@ export function exportEventsReport(
     </div>
   `
 
-  exportToPDF('Security Events Report', statsHtml + tableHtml)
+  exportToPDF('Security Events Report', statsHtml + tableHtml, locale)
+}
+
+/**
+ * Generate a per-incident PDF report bundling alert metadata, triage brief, MITRE,
+ * timeline and analyst comments.
+ */
+export function exportIncidentReport(
+  event: SecurityEvent,
+  timeline: TimelineEvent[] = [],
+  comments: AlertComment[] = [],
+  brief: TriageBrief | null = null,
+  locale: string = 'fr-FR'
+): void {
+  const meta = (event.metadata || {}) as Record<string, unknown>
+  const srcIp = (meta.source_ip ?? meta.attacker_ip ?? '') as string
+  const targetUser = (meta.user ?? meta.target_user ?? '') as string
+
+  const escape = (s: string | null | undefined) => String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+  const headerHtml = `
+    <div class="events-section">
+      <div class="section-header">
+        <div class="section-icon">${ICON_LIST}</div>
+        <div class="section-title">Incident Overview</div>
+        <div class="event-count">${event.id.slice(0, 8)}</div>
+      </div>
+      <table>
+        <tbody>
+          <tr><td style="width:160px;"><strong>Title</strong></td><td>${escape(event.description)}</td></tr>
+          <tr><td><strong>Severity</strong></td><td><span class="badge badge-${event.severity}">${event.severity}</span></td></tr>
+          <tr><td><strong>Status</strong></td><td><span class="status status-${event.status}">${event.status.replace('_', ' ')}</span></td></tr>
+          <tr><td><strong>Source</strong></td><td>${escape(event.source)}</td></tr>
+          <tr><td><strong>Event type</strong></td><td>${escape(event.event_type)}</td></tr>
+          <tr><td><strong>First seen</strong></td><td>${new Date(event.timestamp).toLocaleString(locale)}</td></tr>
+          ${event.site_id ? `<tr><td><strong>Site</strong></td><td>${escape(event.site_id)}</td></tr>` : ''}
+          ${event.assigned_to ? `<tr><td><strong>Assigned to</strong></td><td>${escape(event.assigned_to)}</td></tr>` : ''}
+          ${srcIp ? `<tr><td><strong>Source IP</strong></td><td>${escape(srcIp)}</td></tr>` : ''}
+          ${targetUser ? `<tr><td><strong>User</strong></td><td>${escape(targetUser)}</td></tr>` : ''}
+        </tbody>
+      </table>
+    </div>
+  `
+
+  const briefHtml = brief && (brief.threat_hypothesis || brief.recommended_action) ? `
+    <div class="events-section">
+      <div class="section-header">
+        <div class="section-icon">${ICON_LIST}</div>
+        <div class="section-title">AI Triage Brief</div>
+        ${brief.confidence !== null ? `<div class="event-count">Confidence ${brief.confidence}%</div>` : ''}
+      </div>
+      <table>
+        <tbody>
+          ${brief.threat_hypothesis ? `<tr><td style="width:160px;"><strong>Threat hypothesis</strong></td><td>${escape(brief.threat_hypothesis)}</td></tr>` : ''}
+          ${brief.recommended_action ? `<tr><td><strong>Recommended action</strong></td><td>${escape(brief.recommended_action)}</td></tr>` : ''}
+          ${brief.mitre_tactics && brief.mitre_tactics.length > 0 ? `<tr><td><strong>MITRE</strong></td><td>${brief.mitre_tactics.map(t => escape(t)).join(', ')}</td></tr>` : ''}
+          ${brief.analyst_notes ? `<tr><td><strong>Analyst notes</strong></td><td>${escape(brief.analyst_notes)}</td></tr>` : ''}
+          ${brief.model_used ? `<tr><td><strong>Model</strong></td><td>${escape(brief.model_used)}${brief.generation_seconds ? ` · ${brief.generation_seconds}s` : ''}</td></tr>` : ''}
+        </tbody>
+      </table>
+    </div>
+  ` : ''
+
+  const timelineRows = timeline
+    .slice()
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    .map(t => `
+      <tr>
+        <td style="width:140px;"><span class="timestamp">${new Date(t.timestamp).toLocaleString(locale, {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        })}</span></td>
+        <td>${escape(t.action)}</td>
+        <td style="width:120px;">${escape(t.actor)}</td>
+        <td>${escape(t.details)}</td>
+      </tr>
+    `).join('') || `<tr><td colspan="4" style="text-align:center; padding:12px; color:#94a3b8;">No timeline entries</td></tr>`
+
+  const timelineHtml = `
+    <div class="events-section">
+      <div class="section-header">
+        <div class="section-icon">${ICON_LIST}</div>
+        <div class="section-title">Timeline</div>
+        <div class="event-count">${timeline.length} entries</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:140px;">When</th>
+            <th>Action</th>
+            <th style="width:120px;">Actor</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>${timelineRows}</tbody>
+      </table>
+    </div>
+  `
+
+  const commentsHtml = comments.length > 0 ? `
+    <div class="events-section">
+      <div class="section-header">
+        <div class="section-icon">${ICON_LIST}</div>
+        <div class="section-title">Analyst Comments</div>
+        <div class="event-count">${comments.length}</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:140px;">When</th>
+            <th style="width:120px;">Author</th>
+            <th>Comment</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${comments.map(c => `
+            <tr>
+              <td><span class="timestamp">${new Date(c.created_at).toLocaleString(locale, {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+              })}</span></td>
+              <td>${escape(c.author)}</td>
+              <td>${escape(c.content)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  ` : ''
+
+  const rawHtml = event.raw_log ? `
+    <div class="events-section">
+      <div class="section-header">
+        <div class="section-icon">${ICON_LIST}</div>
+        <div class="section-title">Raw Log</div>
+      </div>
+      <pre style="white-space: pre-wrap; word-break: break-word; font-family: Monaco, monospace; font-size: 10px; background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; border-radius: 6px;">${escape(event.raw_log)}</pre>
+    </div>
+  ` : ''
+
+  exportToPDF(
+    `Incident Report — ${event.id.slice(0, 8)}`,
+    headerHtml + briefHtml + timelineHtml + commentsHtml + rawHtml,
+    locale
+  )
 }
 
 /**

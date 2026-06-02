@@ -151,10 +151,21 @@ def get_stats():
                 for sev, count in severity_counts.items()
             },
             "by_source": {
-                **{src.value: 0 for src in EventSource},
+                **{
+                    src.value: 0
+                    for src in [
+                        EventSource.FIREWALL,
+                        EventSource.IDS,
+                        EventSource.ENDPOINT,
+                        EventSource.APPLICATION,
+                    ]
+                },
                 **{
                     (src.value if hasattr(src, "value") else str(src)): count
                     for src, count in source_counts.items()
+                    if (src.value if hasattr(src, "value") else str(src)) in (
+                        "firewall", "ids", "endpoint", "application"
+                    )
                 },
             },
         }

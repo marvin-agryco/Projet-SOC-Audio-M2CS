@@ -14,6 +14,7 @@ import {
   Check,
   PlayCircle,
   Sparkles,
+  Download,
 } from 'lucide-react'
 import clsx from 'clsx'
 import Modal from './Modal'
@@ -21,6 +22,7 @@ import LoadingSpinner from './LoadingSpinner'
 import { toast } from './Toast'
 import { SecurityEvent, Severity, EventStatus, AlertComment, Analyst, TimelineEvent, Playbook } from '../types'
 import { fetchEvent, updateEventStatus, fetchEventComments, addEventComment, fetchAnalysts, fetchPlaybooks, executePlaybook } from '../api'
+import { exportIncidentReport } from '../utils/export'
 import { useRole } from '../context/RoleContext'
 import { useLanguage } from '../context/LanguageContext'
 import { useNotification } from '../context/NotificationContext'
@@ -151,7 +153,7 @@ export default function AlertDetailModal({
   onClose,
   onUpdate,
 }: AlertDetailModalProps) {
-  const { canAssign } = useRole()
+  const { canAssign, canExport } = useRole()
   const { t, locale } = useLanguage()
   const { addPlaybookNotification } = useNotification()
   const [activeTab, setActiveTab] = useState<TabId>('overview')
@@ -385,6 +387,19 @@ export default function AlertDetailModal({
                   )}
                 </div>
               </div>
+              {canExport && (
+                <button
+                  onClick={() => {
+                    exportIncidentReport(event, timeline, comments, null, locale())
+                    toast.success('Incident report exported')
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors shrink-0"
+                  title="Export this incident as PDF (overview, triage, timeline, comments)"
+                >
+                  <Download className="w-4 h-4" />
+                  Export
+                </button>
+              )}
             </div>
           </div>
 
