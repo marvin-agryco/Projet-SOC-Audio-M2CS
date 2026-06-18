@@ -1,23 +1,35 @@
 #!/usr/bin/env python3
 """
 Log Generator for SOC Dashboard Demo
-Simulates security events from audioprothésiste network (30 sites)
+Simulates security events from real infrastructure nodes
 """
 
 import random
 import time
 import requests
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 # Configuration
 API_URL = "http://localhost:5000/api/ingest"
 
-# Sites (30 audioprothésiste centers)
-SITES = [f"AUDIO_{str(i).zfill(3)}" for i in range(1, 31)]
+# Sites — 30 French audio centers (matches GLPI/dashboard configuration)
+SITES = [
+    "AUDIO_Paris_Bastille", "AUDIO_Paris_Opera", "AUDIO_Paris_Marais",
+    "AUDIO_Paris_Montparnasse", "AUDIO_Paris_Nation", "AUDIO_Paris_Republique",
+    "AUDIO_Versailles", "AUDIO_Boulogne", "AUDIO_Nanterre",
+    "AUDIO_SaintDenis", "AUDIO_Creteil", "AUDIO_Argenteuil", "AUDIO_Montreuil",
+    "AUDIO_Lyon_PartDieu", "AUDIO_Lyon_Confluence",
+    "AUDIO_Marseille_VieuxPort", "AUDIO_Marseille_Castellane",
+    "AUDIO_Toulouse_Capitole", "AUDIO_Toulouse_Blagnac",
+    "AUDIO_Bordeaux_Meriadeck", "AUDIO_Bordeaux_Chartrons",
+    "AUDIO_Nice", "AUDIO_Strasbourg", "AUDIO_Nantes",
+    "AUDIO_Montpellier", "AUDIO_Lille", "AUDIO_Rennes",
+    "AUDIO_Grenoble", "AUDIO_Toulon", "AUDIO_Clermont",
+]
 
-# Event templates by source
+# Event templates by source — only real infrastructure sources
 EVENT_TEMPLATES = {
     "firewall": [
         {"event_type": "blocked_connection", "severity": "low", "description": "Blocked outbound connection to suspicious IP"},
@@ -26,43 +38,32 @@ EVENT_TEMPLATES = {
         {"event_type": "config_change", "severity": "medium", "description": "Firewall configuration modified"},
         {"event_type": "vpn_connection", "severity": "low", "description": "VPN tunnel established"},
     ],
-    "ids": [
-        {"event_type": "signature_match", "severity": "high", "description": "IDS signature match: possible exploit attempt"},
-        {"event_type": "anomaly_detected", "severity": "medium", "description": "Anomalous network behavior detected"},
-        {"event_type": "malware_signature", "severity": "critical", "description": "Known malware signature detected in traffic"},
-        {"event_type": "protocol_violation", "severity": "medium", "description": "Protocol violation detected"},
-    ],
     "endpoint": [
         {"event_type": "malware_detected", "severity": "critical", "description": "Malware detected and quarantined on workstation"},
         {"event_type": "usb_device", "severity": "medium", "description": "Unauthorized USB device connected"},
         {"event_type": "suspicious_process", "severity": "high", "description": "Suspicious process execution detected"},
-        {"event_type": "auth_failure", "severity": "medium", "description": "Multiple failed login attempts on workstation"},
+        {"event_type": "auth_failure", "severity": "medium", "description": "Multiple failed login attempts on endpoint"},
         {"event_type": "software_install", "severity": "low", "description": "New software installed on endpoint"},
-    ],
-    "active_directory": [
-        {"event_type": "auth_failure", "severity": "medium", "description": "Failed authentication attempt"},
         {"event_type": "privilege_escalation", "severity": "critical", "description": "Privilege escalation detected"},
         {"event_type": "account_lockout", "severity": "high", "description": "User account locked out after failed attempts"},
-        {"event_type": "group_membership_change", "severity": "medium", "description": "User added to privileged group"},
-        {"event_type": "password_change", "severity": "low", "description": "Password changed for user account"},
-    ],
-    "email": [
-        {"event_type": "phishing_attempt", "severity": "high", "description": "Potential phishing email detected and blocked"},
-        {"event_type": "malicious_attachment", "severity": "critical", "description": "Malicious attachment blocked"},
-        {"event_type": "spam_detected", "severity": "low", "description": "Spam email filtered"},
-        {"event_type": "suspicious_sender", "severity": "medium", "description": "Email from suspicious sender quarantined"},
+        {"event_type": "file_integrity", "severity": "medium", "description": "File integrity change detected on endpoint"},
     ],
     "application": [
-        {"event_type": "database_error", "severity": "medium", "description": "CRM database connection error"},
-        {"event_type": "unauthorized_access", "severity": "high", "description": "Unauthorized access attempt to patient records"},
-        {"event_type": "data_export", "severity": "medium", "description": "Large data export from application"},
-        {"event_type": "session_hijack", "severity": "critical", "description": "Possible session hijacking detected"},
+        {"event_type": "auth_failure", "severity": "medium", "description": "Failed login attempt on GLPI console"},
+        {"event_type": "config_change", "severity": "high", "description": "GLPI configuration modified"},
+        {"event_type": "asset_change", "severity": "low", "description": "IT asset record created or updated in GLPI"},
+        {"event_type": "user_management", "severity": "medium", "description": "GLPI user account created or modified"},
+        {"event_type": "api_access", "severity": "low", "description": "GLPI REST API access from external IP"},
+        {"event_type": "data_export", "severity": "high", "description": "Bulk data export performed from GLPI"},
     ],
-    "network": [
-        {"event_type": "bandwidth_anomaly", "severity": "medium", "description": "Unusual bandwidth consumption detected"},
-        {"event_type": "dns_exfiltration", "severity": "high", "description": "Possible DNS data exfiltration attempt"},
-        {"event_type": "lateral_movement", "severity": "critical", "description": "Lateral movement detected in network"},
-        {"event_type": "connection_refused", "severity": "low", "description": "Connection refused to internal service"},
+    "ids": [
+        {"event_type": "intrusion_attempt", "severity": "critical", "description": "Suricata: Possible exploit attempt detected (ET EXPLOIT)"},
+        {"event_type": "port_scan", "severity": "high", "description": "Suricata: Network scan detected (ET SCAN)"},
+        {"event_type": "malware_detected", "severity": "critical", "description": "Suricata: Malware traffic signature matched (ET MALWARE)"},
+        {"event_type": "policy_violation", "severity": "medium", "description": "Suricata: Policy violation detected (ET POLICY)"},
+        {"event_type": "intrusion_attempt", "severity": "high", "description": "Suricata: Suspicious inbound traffic to database port"},
+        {"event_type": "security_alert", "severity": "medium", "description": "Suricata: Potentially bad traffic pattern detected"},
+        {"event_type": "intrusion_attempt", "severity": "critical", "description": "Suricata: Known exploit signature matched (CVE)"},
     ],
 }
 
@@ -78,20 +79,32 @@ def generate_raw_log(source: str, event_type: str) -> str:
 
     templates = {
         "firewall": f"{timestamp} FW-001 BLOCK src={random.choice(EXTERNAL_IPS)} dst={random.choice(INTERNAL_IPS)} proto=TCP dport={random.choice([22, 23, 445, 3389, 8080])}",
-        "ids": f"{timestamp} [**] [1:{random.randint(1000, 9999)}:{random.randint(1, 10)}] {event_type.upper()} [**] {random.choice(EXTERNAL_IPS)} -> {random.choice(INTERNAL_IPS)}",
-        "endpoint": f"{timestamp} ENDPOINT-{random.randint(100, 999)} Event={event_type} User={random.choice(USERS)} Status=Detected",
-        "active_directory": f"{timestamp} EventID={random.choice([4625, 4624, 4728, 4732])} User={random.choice(USERS)} Domain=AUDIOPRO Workstation={random.choice(SITES)}",
-        "email": f"{timestamp} SMTP From=<{random.choice(['suspicious', 'unknown', 'spam'])}@{random.choice(['malware.net', 'phish.com', 'bad.org'])}> To=<{random.choice(USERS)}@audiopro.fr>",
-        "application": f"{timestamp} APP-LOG Level=WARN Module=CRM Action={event_type} User={random.choice(USERS)} IP={random.choice(INTERNAL_IPS)}",
-        "network": f"{timestamp} FLOW src={random.choice(INTERNAL_IPS)} dst={random.choice(EXTERNAL_IPS)} bytes={random.randint(100, 1000000)} proto=TCP",
+        "endpoint": f"{timestamp} ENDPOINT-{random.randint(100, 999)} Event={event_type} User={random.choice(USERS)} Host={random.choice(SITES)} Status=Detected",
+        "application": f"{timestamp} GLPI [access] {event_type} user={random.choice(USERS)} ip={random.choice(EXTERNAL_IPS)} action={event_type}",
+        "ids": f'{timestamp} suricata[{random.randint(1000,9999)}]: [{random.randint(1,3)}:{random.randint(2000000,2099999)}:{random.randint(1,10)}] ET {random.choice(["SCAN", "EXPLOIT", "MALWARE", "POLICY"])} {event_type} {{TCP}} {random.choice(EXTERNAL_IPS)}:{random.randint(1024,65535)} -> {random.choice(INTERNAL_IPS)}:{random.choice([22, 80, 443, 445, 3389, 8080])}',
     }
 
     return templates.get(source, f"{timestamp} {event_type}")
 
 
+SOURCE_WEIGHTS = {
+    # Realistic SOC distribution:
+    # Firewalls are the noisiest (perimeter, NAT, allow/deny for all traffic)
+    # Endpoints second (EDR agents on workstations/servers)
+    # IDS is filtered/alerting layer — less volume than raw firewall
+    # Application (GLPI) is low-frequency IT ops events
+    "firewall": 40,
+    "endpoint": 30,
+    "application": 10,
+    "ids": 20,
+}
+
+
 def generate_event() -> dict:
     """Generate a random security event."""
-    source = random.choice(list(EVENT_TEMPLATES.keys()))
+    sources = list(EVENT_TEMPLATES.keys())
+    weights = [SOURCE_WEIGHTS[s] for s in sources]
+    source = random.choices(sources, weights=weights, k=1)[0]
     template = random.choice(EVENT_TEMPLATES[source])
     site = random.choice(SITES)
 
@@ -178,41 +191,50 @@ def generate_attack_scenario():
     target_user = random.choice(USERS)
 
     scenario = [
-        # Phase 1: Reconnaissance
+        # Phase 1: Reconnaissance (IDS + Firewall detect scanning)
+        {"source": "ids", "event_type": "port_scan", "severity": "high",
+         "description": f"[{site}] Suricata: Nmap scan detected from {attacker_ip}"},
         {"source": "firewall", "event_type": "port_scan", "severity": "high",
          "description": f"[{site}] Port scan from {attacker_ip}"},
-        {"source": "ids", "event_type": "signature_match", "severity": "medium",
-         "description": f"[{site}] Network reconnaissance detected"},
+        {"source": "firewall", "event_type": "blocked_connection", "severity": "medium",
+         "description": f"[{site}] Multiple blocked connections from {attacker_ip}"},
 
-        # Phase 2: Initial Access
-        {"source": "email", "event_type": "phishing_attempt", "severity": "high",
-         "description": f"[{site}] Phishing email targeting {target_user}"},
-        {"source": "endpoint", "event_type": "suspicious_process", "severity": "high",
-         "description": f"[{site}] Macro execution in Office document"},
+        # Phase 2: Initial Access — brute force
+        {"source": "endpoint", "event_type": "auth_failure", "severity": "medium",
+         "description": f"[{site}] Failed SSH login attempt for {target_user} from {attacker_ip}"},
+        {"source": "endpoint", "event_type": "auth_failure", "severity": "high",
+         "description": f"[{site}] Multiple failed login attempts for {target_user}"},
+        {"source": "endpoint", "event_type": "account_lockout", "severity": "high",
+         "description": f"[{site}] Account {target_user} locked after repeated failures"},
 
         # Phase 3: Execution
+        {"source": "endpoint", "event_type": "suspicious_process", "severity": "high",
+         "description": f"[{site}] Suspicious process execution on {target_user}'s workstation"},
         {"source": "endpoint", "event_type": "malware_detected", "severity": "critical",
          "description": f"[{site}] Malicious payload executed on {target_user}'s workstation"},
-        {"source": "active_directory", "event_type": "auth_failure", "severity": "medium",
-         "description": f"[{site}] Multiple failed auth attempts for {target_user}"},
 
-        # Phase 4: Lateral Movement
-        {"source": "network", "event_type": "lateral_movement", "severity": "critical",
-         "description": f"[{site}] Lateral movement detected from compromised host"},
-        {"source": "active_directory", "event_type": "privilege_escalation", "severity": "critical",
+        # Phase 4: Privilege Escalation
+        {"source": "endpoint", "event_type": "privilege_escalation", "severity": "critical",
          "description": f"[{site}] Privilege escalation attempt detected"},
+        {"source": "endpoint", "event_type": "file_integrity", "severity": "medium",
+         "description": f"[{site}] Critical system file modified"},
 
-        # Phase 5: Data Access
-        {"source": "application", "event_type": "unauthorized_access", "severity": "critical",
-         "description": f"[{site}] Unauthorized access to patient database"},
-        {"source": "network", "event_type": "dns_exfiltration", "severity": "critical",
-         "description": f"[{site}] Possible data exfiltration via DNS"},
+        # Phase 5: Exfiltration (IDS + Firewall detect C2 traffic)
+        {"source": "ids", "event_type": "malware_detected", "severity": "critical",
+         "description": f"[{site}] Suricata: Possible C2 beacon traffic detected from compromised host"},
+        {"source": "firewall", "event_type": "intrusion_attempt", "severity": "critical",
+         "description": f"[{site}] Unusual outbound data transfer detected from compromised host"},
     ]
 
     for i, event in enumerate(scenario):
         event["site_id"] = site
-        event["metadata"] = {"attacker_ip": attacker_ip, "target_user": target_user}
+        # source_ip is the canonical key used by Top Source IPs and triage enrichment.
+        event["metadata"] = {
+            "source_ip": attacker_ip,
+            "target_user": target_user,
+        }
         event["raw_log"] = generate_raw_log(event["source"], event["event_type"])
+        event["timestamp"] = datetime.now(timezone.utc).isoformat()
 
         success = send_event(event)
         status = "OK" if success else "FAILED"
@@ -223,12 +245,101 @@ def generate_attack_scenario():
     print("Attack scenario complete!")
 
 
+def run_backfill(days: int = 7, count: int = 1000):
+    """Generate historical events spread across a time range.
+
+    Args:
+        days: Number of days to backfill (default: 7)
+        count: Total number of events to generate (default: 1000)
+    """
+    print(f"Backfilling {count} events over the last {days} days...")
+    print("-" * 50)
+
+    now = datetime.now()
+    start_time = now - timedelta(days=days)
+    time_range_seconds = days * 24 * 60 * 60
+
+    # Generate events with random timestamps spread across the time range
+    sent = 0
+    failed = 0
+
+    # Create batches for efficiency
+    batch_size = 50
+    batch = []
+
+    for i in range(count):
+        # Generate random timestamp within the range
+        random_seconds = random.random() * time_range_seconds
+        event_time = start_time + timedelta(seconds=random_seconds)
+
+        # Generate event
+        event = generate_event()
+        event["timestamp"] = event_time.isoformat()
+
+        # Update raw_log with correct timestamp
+        event["raw_log"] = event["raw_log"].replace(
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            event_time.strftime("%Y-%m-%d %H:%M:%S")
+        )
+
+        batch.append(event)
+
+        # Send batch when full
+        if len(batch) >= batch_size:
+            try:
+                response = requests.post(
+                    API_URL.replace('/ingest', '/ingest/batch'),
+                    json={"events": batch},
+                    timeout=30
+                )
+                if response.status_code == 201:
+                    result = response.json()
+                    sent += result.get('created', 0)
+                    failed += len(result.get('errors', []))
+                else:
+                    failed += len(batch)
+            except requests.RequestException as e:
+                print(f"Batch failed: {e}")
+                failed += len(batch)
+
+            # Progress update
+            progress = ((i + 1) / count) * 100
+            print(f"Progress: {progress:.1f}% ({sent} sent, {failed} failed)")
+            batch = []
+
+    # Send remaining events
+    if batch:
+        try:
+            response = requests.post(
+                API_URL.replace('/ingest', '/ingest/batch'),
+                json={"events": batch},
+                timeout=30
+            )
+            if response.status_code == 201:
+                result = response.json()
+                sent += result.get('created', 0)
+                failed += len(result.get('errors', []))
+            else:
+                failed += len(batch)
+        except requests.RequestException as e:
+            print(f"Final batch failed: {e}")
+            failed += len(batch)
+
+    print("-" * 50)
+    print(f"Backfill complete!")
+    print(f"  - Events sent: {sent}")
+    print(f"  - Events failed: {failed}")
+    print(f"  - Time range: {start_time.strftime('%Y-%m-%d %H:%M')} to {now.strftime('%Y-%m-%d %H:%M')}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SOC Dashboard Log Generator")
     parser.add_argument("--interval", "-i", type=float, default=2.0, help="Interval between events (seconds)")
     parser.add_argument("--burst", "-b", action="store_true", help="Enable burst mode (simulates attacks)")
     parser.add_argument("--count", "-c", type=int, help="Number of events to generate (infinite if not set)")
     parser.add_argument("--attack", "-a", action="store_true", help="Generate attack scenario")
+    parser.add_argument("--backfill", action="store_true", help="Generate historical events (backfill)")
+    parser.add_argument("--days", "-d", type=int, default=7, help="Number of days to backfill (default: 7)")
     parser.add_argument("--url", "-u", type=str, default=API_URL, help="API URL")
 
     args = parser.parse_args()
@@ -236,5 +347,8 @@ if __name__ == "__main__":
 
     if args.attack:
         generate_attack_scenario()
+    elif args.backfill:
+        backfill_count = args.count if args.count else 1000
+        run_backfill(days=args.days, count=backfill_count)
     else:
         run_generator(interval=args.interval, burst=args.burst, count=args.count)

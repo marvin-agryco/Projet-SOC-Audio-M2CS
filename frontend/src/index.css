@@ -4,17 +4,44 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* Dark theme (default) */
+:root,
+[data-theme="dark"] {
   --color-bg-primary: #0f172a;
   --color-bg-secondary: #1e293b;
+  --color-bg-tertiary: #0f172a;
   --color-bg-card: #1e293b;
+  --color-bg-card-hover: #334155;
   --color-border: #334155;
   --color-accent: #3b82f6;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-sidebar: #0f172a;
+  --color-topbar: #0f172a;
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --color-bg-primary: #f8fafc;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f1f5f9;
+  --color-bg-card: #ffffff;
+  --color-bg-card-hover: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-accent: #2563eb;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  --color-sidebar: #ffffff;
+  --color-topbar: #ffffff;
 }
 
 body {
-  @apply bg-slate-900 text-slate-100;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
   font-family: 'Inter', system-ui, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Custom scrollbar */
@@ -37,7 +64,29 @@ body {
 
 /* Card glass effect */
 .glass-card {
-  @apply bg-slate-800/80 backdrop-blur-sm border border-slate-700 rounded-xl;
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  @apply backdrop-blur-sm rounded-xl;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+[data-theme="dark"] .glass-card {
+  @apply bg-slate-800/80;
+}
+
+[data-theme="light"] .glass-card {
+  @apply bg-white/90 shadow-lg shadow-slate-200/50;
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  @apply p-2 rounded-lg transition-all duration-200;
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+}
+
+.theme-toggle:hover {
+  background-color: var(--color-bg-card-hover);
 }
 
 /* Severity badge styles */
@@ -115,6 +164,16 @@ body {
   animation: fade-in 0.3s ease-out forwards;
 }
 
+/* New entry highlight (live feed) */
+@keyframes new-entry {
+  0% { background-color: rgba(59, 130, 246, 0.3); }
+  100% { background-color: transparent; }
+}
+
+.animate-new-entry {
+  animation: new-entry 2s ease-out;
+}
+
 /* Live indicator enhanced */
 @keyframes live-glow {
   0%, 100% {
@@ -139,4 +198,160 @@ body {
 
 .status-pulse {
   animation: status-pulse 2s ease-in-out infinite;
+}
+
+/* StatCard live-event pulse (ring flash on realtime ingestion) */
+@keyframes statcard-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+  60%  { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.statcard-pulse {
+  animation: statcard-pulse 1.4s ease-out;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Light theme: remap hardcoded dark Tailwind classes.
+   [data-theme="light"] .class has higher specificity (0,2,0) than
+   a plain Tailwind utility (0,1,0), so no !important needed.
+───────────────────────────────────────────────────────────────── */
+
+/* Scrollbar */
+[data-theme="light"] ::-webkit-scrollbar-track { background: #f1f5f9; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 9999px; }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* Form inputs: override text-white set on dark-bg inputs */
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea { color: #0f172a; }
+[data-theme="light"] input::placeholder { color: #94a3b8; }
+
+/* ── Solid backgrounds ── */
+[data-theme="light"] .bg-slate-950 { background-color: #f8fafc; }
+[data-theme="light"] .bg-slate-900 { background-color: #f1f5f9; }
+[data-theme="light"] .bg-slate-800 { background-color: #ffffff; }
+[data-theme="light"] .bg-slate-700 { background-color: #f1f5f9; }
+[data-theme="light"] .bg-slate-600 { background-color: #e2e8f0; }
+[data-theme="light"] .bg-gray-900  { background-color: #f1f5f9; }
+[data-theme="light"] .bg-gray-800  { background-color: #ffffff; }
+[data-theme="light"] .bg-gray-700  { background-color: #f1f5f9; }
+[data-theme="light"] .bg-gray-600  { background-color: #e2e8f0; }
+
+/* ── Alpha backgrounds ── */
+[data-theme="light"] .bg-slate-900\/95 { background-color: rgb(248 250 252 / 0.97); }
+[data-theme="light"] .bg-slate-900\/50 { background-color: rgb(241 245 249 / 0.95); }
+[data-theme="light"] .bg-slate-800\/80 { background-color: rgb(255 255 255 / 0.9); }
+[data-theme="light"] .bg-slate-800\/60 { background-color: rgb(255 255 255 / 0.8); }
+[data-theme="light"] .bg-slate-800\/50 { background-color: rgb(255 255 255 / 0.85); }
+[data-theme="light"] .bg-slate-800\/40 { background-color: rgb(226 232 240 / 0.5); }
+[data-theme="light"] .bg-slate-700\/30 { background-color: rgb(226 232 240 / 0.6); }
+[data-theme="light"] .bg-slate-700\/50 { background-color: rgb(226 232 240 / 0.7); }
+[data-theme="light"] .bg-gray-700\/30  { background-color: rgb(226 232 240 / 0.6); }
+[data-theme="light"] .bg-gray-700\/50  { background-color: rgb(226 232 240 / 0.7); }
+
+/* ── Hover backgrounds ── */
+[data-theme="light"] .hover\:bg-slate-900:hover  { background-color: #e2e8f0; }
+[data-theme="light"] .hover\:bg-slate-800:hover  { background-color: #f1f5f9; }
+[data-theme="light"] .hover\:bg-slate-700:hover  { background-color: #e2e8f0; }
+[data-theme="light"] .hover\:bg-slate-700\/50:hover { background-color: rgb(226 232 240 / 0.8); }
+[data-theme="light"] .hover\:bg-slate-700\/30:hover { background-color: rgb(226 232 240 / 0.5); }
+[data-theme="light"] .hover\:bg-gray-700:hover   { background-color: #e2e8f0; }
+[data-theme="light"] .hover\:bg-gray-700\/30:hover { background-color: rgb(226 232 240 / 0.5); }
+[data-theme="light"] .hover\:bg-gray-600:hover   { background-color: #cbd5e1; }
+
+/* ── Text colors ── */
+[data-theme="light"] .text-slate-100 { color: #0f172a; }
+[data-theme="light"] .text-slate-200 { color: #1e293b; }
+[data-theme="light"] .text-slate-300 { color: #334155; }
+[data-theme="light"] .text-slate-400 { color: #475569; }
+[data-theme="light"] .text-slate-500 { color: #64748b; }
+[data-theme="light"] .text-slate-600 { color: #94a3b8; }
+[data-theme="light"] .text-gray-100  { color: #0f172a; }
+[data-theme="light"] .text-gray-200  { color: #1e293b; }
+[data-theme="light"] .text-gray-300  { color: #334155; }
+[data-theme="light"] .text-gray-400  { color: #475569; }
+[data-theme="light"] .text-gray-500  { color: #64748b; }
+
+/* text-white: remap to dark on light backgrounds, but restore on colored buttons/badges */
+[data-theme="light"] .text-white { color: #0f172a; }
+[data-theme="light"] [class*="bg-blue-"].text-white,
+[data-theme="light"] [class*="bg-red-"].text-white,
+[data-theme="light"] [class*="bg-green-"].text-white,
+[data-theme="light"] [class*="bg-orange-"].text-white,
+[data-theme="light"] [class*="bg-yellow-"].text-white,
+[data-theme="light"] [class*="bg-purple-"].text-white,
+[data-theme="light"] [class*="bg-violet-"].text-white,
+[data-theme="light"] [class*="bg-indigo-"].text-white { color: #ffffff; }
+
+/* Hover & group-hover text */
+[data-theme="light"] .hover\:text-white:hover { color: #0f172a; }
+[data-theme="light"] .hover\:text-slate-200:hover { color: #1e293b; }
+[data-theme="light"] .group:hover .group-hover\:text-white { color: #0f172a; }
+
+/* ── Borders ── */
+[data-theme="light"] .border-slate-800    { border-color: #e2e8f0; }
+[data-theme="light"] .border-slate-800\/80 { border-color: rgb(226 232 240 / 0.8); }
+[data-theme="light"] .border-slate-700    { border-color: #e2e8f0; }
+[data-theme="light"] .border-slate-700\/50 { border-color: rgb(226 232 240 / 0.7); }
+[data-theme="light"] .border-slate-600    { border-color: #cbd5e1; }
+[data-theme="light"] .border-gray-700     { border-color: #e2e8f0; }
+[data-theme="light"] .border-gray-700\/50  { border-color: rgb(226 232 240 / 0.7); }
+[data-theme="light"] .border-gray-600     { border-color: #cbd5e1; }
+
+/* ── Divide ── */
+[data-theme="light"] .divide-slate-700 > :not([hidden]) ~ :not([hidden]) { border-color: #e2e8f0; }
+[data-theme="light"] .divide-gray-700  > :not([hidden]) ~ :not([hidden]) { border-color: #e2e8f0; }
+
+/* ── Chronos slider (DateRangePicker time controls) ── */
+.chronos-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+.chronos-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+.chronos-slider::-moz-range-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+.chronos-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+  transition: transform 0.12s ease;
+}
+.chronos-slider::-webkit-slider-thumb:hover { transform: scale(1.18); }
+.chronos-slider:active::-webkit-slider-thumb { transform: scale(1.25); }
+.chronos-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+  transition: transform 0.12s ease;
+}
+.chronos-slider::-moz-range-thumb:hover { transform: scale(1.18); }
+[data-theme="light"] .chronos-slider,
+[data-theme="light"] .chronos-slider::-webkit-slider-runnable-track,
+[data-theme="light"] .chronos-slider::-moz-range-track {
+  background: rgba(15, 23, 42, 0.1);
 }

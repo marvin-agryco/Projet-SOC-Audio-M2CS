@@ -36,7 +36,7 @@ const renderActiveShape = (props: any) => {
 }
 
 export default function AlertsBySourceChart({ data, onSourceSelect, selectedSource }: AlertsBySourceChartProps) {
-    const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined)
+    const [, setActiveIndex] = useState<number | undefined>(undefined)
     const [hoveredIndex, setHoveredIndex] = useState<number | undefined>(undefined)
 
     // Find the index of the selected source
@@ -132,7 +132,7 @@ export default function AlertsBySourceChart({ data, onSourceSelect, selectedSour
                     <Legend
                         verticalAlign="bottom"
                         height={36}
-                        formatter={(value, entry: any) => (
+                        formatter={(value) => (
                             <span
                                 className={clsx(
                                     'text-sm cursor-pointer transition-colors',

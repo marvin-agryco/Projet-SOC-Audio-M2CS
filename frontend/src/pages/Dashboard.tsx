@@ -1,38 +1,46 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, AlertTriangle, Monitor, Users, Radio, Pause } from 'lucide-react'
-import { fetchDashboardStats, fetchDashboardTrends, fetchEvents } from '../api'
-import { DashboardStats, SecurityEvent } from '../types'
+import { Activity, AlertTriangle, Monitor, Users, Radio, Pause, ShieldAlert } from 'lucide-react'
+import { fetchDashboardStats, fetchDashboardTrendsWithRange, fetchEvents, fetchDashboardHeatmap } from '../api'
+import { DashboardStats, SecurityEvent, HeatmapEntry } from '../types'
 import StatCard from '../components/StatCard'
 import EventVolumeChart from '../components/EventVolumeChart'
 import AlertsBySourceChart from '../components/AlertsBySourceChart'
 import RecentAlertsTable from '../components/RecentAlertsTable'
 import EndpointStatusCard from '../components/EndpointStatusCard'
 import AlertDetailModal from '../components/AlertDetailModal'
+import SourcesPanel from '../components/SourcesPanel'
+import SeverityTrendChart from '../components/SeverityTrendChart'
+import ActivityHeatmap from '../components/ActivityHeatmap'
+import TopSourceIPs from '../components/TopSourceIPs'
 import { ToastContainer, toast } from '../components/Toast'
+import { useLanguage } from '../context/LanguageContext'
 import clsx from 'clsx'
+import { fmtTime } from '../utils/dateFormat'
 
 interface DashboardProps {
   realtimeEvents: SecurityEvent[]
 }
 
-type TimeRange = '1h' | '6h' | '24h' | '7d' | '30d'
+type TimeRange = '5m' | '15m' | '30m' | '1h' | '6h' | '24h' | '7d' | '30d'
 
-// Source colors for donut chart
+// Source colors for donut chart — must stay aligned with SourcesPanel SOURCE_CONFIG
 const SOURCE_COLORS: Record<string, string> = {
-  application: '#22c55e', // green - Apps (CRM)
-  firewall: '#ef4444',    // red
-  ids: '#3b82f6',         // blue - Servers
-  endpoint: '#f59e0b',    // orange - Workstations
-  network: '#8b5cf6',     // purple
-  email: '#06b6d4',       // cyan
-  active_directory: '#ec4899', // pink
+  firewall: '#f97316',    // orange
+  endpoint: '#3b82f6',    // blue
+  application: '#22c55e', // green (GLPI)
+  ids: '#8b5cf6',         // purple (Suricata)
 }
 
 export default function Dashboard({ realtimeEvents }: DashboardProps) {
   const navigate = useNavigate()
+  const { t } = useLanguage()
   const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [trends, setTrends] = useState<{ hourly: Array<{ hour: string; count: number }> } | null>(null)
+  const [trends, setTrends] = useState<{
+    hourly: Array<{ hour: string; count: number }>
+    daily: Array<{ date: string; critical: number; high: number; medium: number; low: number }>
+  } | null>(null)
+  const [heatmapData, setHeatmapData] = useState<HeatmapEntry[]>([])
   const [criticalAlerts, setCriticalAlerts] = useState<SecurityEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [chartLoading, setChartLoading] = useState(false)
@@ -44,23 +52,59 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null)
   const [alertModalOpen, setAlertModalOpen] = useState(false)
   const [isLiveMode, setIsLiveMode] = useState(true)
+  const [refreshCounter, setRefreshCounter] = useState(0)
 
-  const loadData = useCallback(async () => {
+  const [heatmapDays, setHeatmapDays] = useState(30)
+  const [timeSlice, setTimeSlice] = useState<{start: string, end: string} | null>(null)
+  const [sourcePanelOpen, setSourcePanelOpen] = useState(false)
+
+  // Realtime pulse: flash the affected cards when a new event arrives
+  const [pulseTick, setPulseTick] = useState(0)
+  const [pulseSeverity, setPulseSeverity] = useState<string | null>(null)
+  useEffect(() => {
+    if (realtimeEvents.length === 0) return
+    const latest = realtimeEvents[0]
+    if (latest.event_type === 'keepalive') return
+    setPulseSeverity(latest.severity)
+    setPulseTick((t) => t + 1)
+    const timer = setTimeout(() => setPulseSeverity(null), 1500)
+    return () => clearTimeout(timer)
+  }, [realtimeEvents])
+  const pulseActive = pulseTick > 0 && pulseSeverity !== null
+
+  const loadData = useCallback(async (
+    currentTimeRange: TimeRange = timeRange,
+    currentTimeSlice = timeSlice
+  ) => {
     try {
+      const fetchEventsParams: any = { severity: 'critical,high', status: 'new', limit: 10 }
+      if (currentTimeSlice) {
+        fetchEventsParams.start_time = currentTimeSlice.start
+        fetchEventsParams.end_time = currentTimeSlice.end
+      }
+
       const [statsData, trendsData, eventsData] = await Promise.all([
         fetchDashboardStats(),
-        fetchDashboardTrends(),
-        fetchEvents({ severity: 'critical,high', status: 'new', limit: 10 }),
+        fetchDashboardTrendsWithRange(currentTimeRange),
+        fetchEvents(fetchEventsParams),
       ])
       setStats(statsData)
       setTrends(trendsData)
       setCriticalAlerts(eventsData.events || [])
+      setRefreshCounter((c: number) => c + 1)
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [timeRange, timeSlice])
+
+  // Heatmap has its own independent fetch — only re-runs when heatmapDays changes
+  useEffect(() => {
+    fetchDashboardHeatmap(heatmapDays)
+      .then((result: any) => setHeatmapData(result.heatmap || []))
+      .catch((err: any) => console.error('Failed to load heatmap:', err))
+  }, [heatmapDays])
 
   useEffect(() => {
     loadData()
@@ -82,8 +126,7 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
     setTimeRange(range)
     setChartLoading(true)
     try {
-      // In a real app, this would fetch data for the specific time range
-      const trendsData = await fetchDashboardTrends()
+      const trendsData = await fetchDashboardTrendsWithRange(range)
       setTrends(trendsData)
     } catch (error) {
       console.error('Failed to load trends:', error)
@@ -97,7 +140,15 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
     setSelectedSource(source)
     setSelectedSourceLabel(sourceName)
     if (source) {
-      toast.info(`Filtering by ${sourceName}`)
+      toast.info(`${t('common.filteringBy')} ${sourceName}`)
+    }
+  }
+
+  const handleTimeSliceSelect = (start: string, end: string) => {
+    if (start && end) {
+      setTimeSlice({ start, end })
+    } else {
+      setTimeSlice(null)
     }
   }
 
@@ -111,15 +162,15 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
   const toggleLiveMode = () => {
     setIsLiveMode(!isLiveMode)
     if (!isLiveMode) {
-      toast.success('Live mode enabled - auto-refreshing every 10 seconds')
+      toast.success(t('common.liveEnabled'))
     } else {
-      toast.info('Live mode disabled')
+      toast.info(t('common.liveDisabled'))
     }
   }
 
   // Handle chart point click
   const handleChartPointClick = (time: string, value: number) => {
-    toast.info(`Showing ${value} events at ${time}`)
+    toast.info(`${t('common.showingEvents')} ${value} ${t('eventVolume.events')} ${t('common.eventsAt')} ${time}`)
     navigate(`/events?time=${time}`)
   }
 
@@ -135,7 +186,7 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
   const eventVolumeData = trends?.hourly?.map((h: { hour: string; count: number }) => ({
     time: h.hour,
     value: h.count,
-  })) || generateMockHourlyData()
+  })) || []
 
   // Transform source data to pie chart format with sourceKey
   const alertsBySourceData = stats?.by_source
@@ -145,31 +196,39 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
       color: SOURCE_COLORS[name] || '#64748b',
       sourceKey: name,
     }))
-    : generateMockSourceData()
+    : []
 
-  // Transform recent alerts to table format with sourceKey
-  const recentAlerts = [...realtimeEvents, ...criticalAlerts]
+  // Transform recent alerts to table format with sourceKey + grouping
+  const rawAlerts = [...realtimeEvents, ...criticalAlerts]
     .filter((e) => e.severity === 'critical' || e.severity === 'high')
-    .slice(0, 10)
     .map((e) => ({
       id: e.id,
       severity: e.severity,
       alertName: e.description,
       source: e.site_id || formatSourceName(e.source),
       sourceKey: e.source,
-      time: new Date(e.timestamp).toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      }),
+      time: fmtTime(e.timestamp),
       assignee: e.assigned_to,
+      count: 1,
     }))
 
-  // Calculate trend percentages (mock for now)
-  const yesterdayEvents = stats?.total_events ? Math.round(stats.total_events * 0.88) : 0
-  const eventsTrend = stats?.total_events
-    ? parseFloat((((stats.total_events - yesterdayEvents) / yesterdayEvents) * 100).toFixed(1))
-    : 12.5
+  // Group by alertName + source to reduce alert fatigue
+  const groupedMap = new Map<string, typeof rawAlerts[0]>()
+  for (const alert of rawAlerts) {
+    const key = `${alert.alertName}::${alert.sourceKey || alert.source}`
+    const existing = groupedMap.get(key)
+    if (existing) {
+      existing.count += 1
+    } else {
+      groupedMap.set(key, { ...alert })
+    }
+  }
+  const recentAlerts = Array.from(groupedMap.values()).slice(0, 10)
+
+  // Trend indicators: % change vs previous 24h
+  const eventsTrend = stats?.events_prev_24h
+    ? Math.round(((stats.events_last_24h - stats.events_prev_24h) / stats.events_prev_24h) * 100)
+    : null
 
   return (
     <div className="space-y-6">
@@ -179,9 +238,9 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Security Overview</h1>
+          <h1 className="text-2xl font-bold text-slate-100">{t('dashboard.securityOverview')}</h1>
           <p className="text-slate-400 text-sm mt-1">
-            Real-time status of the AudioPro Network
+            {t('dashboard.realtimeStatus')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -198,48 +257,69 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
             {isLiveMode ? (
               <>
                 <Radio className="w-4 h-4 live-glow" />
-                <span>LIVE</span>
+                <span>{t('dashboard.live')}</span>
               </>
             ) : (
               <>
                 <Pause className="w-4 h-4" />
-                <span>Paused</span>
+                <span>{t('dashboard.paused')}</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Stats Cards - Now Clickable */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <StatCard
+          key={`events-${pulseTick}`}
           icon={<Activity className="w-6 h-6" />}
-          label="Security Events"
-          value={stats?.total_events ?? 14203}
-          trend={{ value: eventsTrend, isPositive: true }}
+          label={t('dashboard.securityEvents')}
+          value={stats?.total_events ?? 0}
+          trend={eventsTrend !== null ? { value: Math.abs(eventsTrend), isPositive: eventsTrend <= 0, severity: Math.abs(eventsTrend) > 100 ? 'critical' : Math.abs(eventsTrend) > 50 ? 'warning' : 'normal' } : undefined}
+          sparklineData={trends?.hourly?.map((h: { count: number }) => h.count) || []}
+          statusColor="normal"
+          pulse={pulseActive}
           linkTo="/events"
         />
         <StatCard
+          key={`alerts-${pulseTick}`}
           icon={<AlertTriangle className="w-6 h-6" />}
-          label="Active Alerts"
-          value={stats?.critical_open ?? 23}
-          trend={{ value: 5.2, isPositive: false }}
+          label={t('dashboard.alertsTriggered')}
+          value={stats?.total_rule_triggers ?? 0}
+          subValue={
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span>{stats?.by_severity?.critical || 0} Critical</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span>{stats?.by_severity?.high || 0} High</span>
+            </div>
+          }
+          statusColor={(stats?.total_rule_triggers || 0) > 100 ? 'critical' : (stats?.total_rule_triggers || 0) > 50 ? 'warning' : 'normal'}
+          pulse={pulseActive && (pulseSeverity === 'critical' || pulseSeverity === 'high')}
           linkTo="/alerts"
-          linkParams={{ status: 'new,investigating' }}
+        />
+        <StatCard
+          icon={<ShieldAlert className="w-6 h-6" />}
+          label={t('dashboard.openIncidents')}
+          value={stats?.open_incidents ?? 0}
+          subValue={(stats?.open_incidents || 0) > 0 ? t('dashboard.requiresAttention') : t('dashboard.allClear')}
+          statusColor={(stats?.open_incidents || 0) > 0 ? 'critical' : 'success'}
+          linkTo="/incidents"
         />
         <StatCard
           icon={<Monitor className="w-6 h-6" />}
-          label="Endpoints Monitored"
-          value={32}
-          trend={{ value: 2.1, isPositive: true }}
+          label={t('dashboard.endpoints')}
+          value={stats?.total_sites ?? 0}
+          subValue={t('dashboard.agentsReporting')}
+          statusColor="success"
           linkTo="/sites"
         />
         <StatCard
           icon={<Users className="w-6 h-6" />}
-          label="CRM User Sessions"
-          value={128}
-          trend={{ value: 0.8, isPositive: true }}
-          onClick={() => toast.info('Session logs feature coming soon')}
+          label={t('dashboard.sources')}
+          value={`${stats?.by_source ? Object.keys(stats.by_source).length : 0} / 4`}
+          subValue={t('dashboard.sourcesActive')}
+          statusColor={(stats?.by_source && Object.keys(stats.by_source).length < 4) ? 'warning' : 'normal'}
+          onClick={() => setSourcePanelOpen(true)}
         />
       </div>
 
@@ -263,9 +343,14 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
         </div>
       </div>
 
+      {/* Severity Trend (visible uniquement pour 7d/30d) */}
+      {(timeRange === '7d' || timeRange === '30d') && (
+        <SeverityTrendChart data={trends?.daily ?? []} loading={chartLoading} />
+      )}
+
       {/* Recent Alerts Table + Endpoint Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-4">
           <RecentAlertsTable
             alerts={recentAlerts}
             isLive={isLiveMode}
@@ -273,9 +358,18 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
             filteredSource={selectedSource}
             filterLabel={selectedSourceLabel || undefined}
           />
+          
+          <ActivityHeatmap 
+            data={heatmapData} 
+            loading={loading}
+            days={heatmapDays}
+            onTimeRangeChange={setHeatmapDays}
+            onTimeSliceSelect={handleTimeSliceSelect}
+          />
         </div>
-        <div>
+        <div className="space-y-4">
           <EndpointStatusCard maxDisplay={5} />
+          <TopSourceIPs refreshTrigger={refreshCounter} />
         </div>
       </div>
 
@@ -291,6 +385,9 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
           )
         }}
       />
+
+      {/* Sources Detail Panel */}
+      <SourcesPanel isOpen={sourcePanelOpen} onClose={() => setSourcePanelOpen(false)} />
     </div>
   )
 }
@@ -298,35 +395,11 @@ export default function Dashboard({ realtimeEvents }: DashboardProps) {
 // Helper functions
 function formatSourceName(source: string): string {
   const names: Record<string, string> = {
-    application: 'Apps (CRM)',
-    firewall: 'Firewalls',
-    ids: 'Servers',
-    endpoint: 'Workstations',
-    network: 'Network',
-    email: 'Email',
-    active_directory: 'Active Directory',
+    firewall: 'Firewall',
+    endpoint: 'Endpoints',
+    application: 'GLPI',
+    ids: 'IDS / Suricata',
   }
   return names[source] || source.charAt(0).toUpperCase() + source.slice(1)
 }
 
-// Mock data generators for demo mode
-function generateMockHourlyData() {
-  const hours = []
-  for (let i = 0; i <= 23; i++) {
-    const hour = i.toString().padStart(2, '0') + ':00'
-    let value = 500
-    if (i >= 6 && i <= 12) value = 1500 + Math.random() * 2000
-    else if (i >= 13 && i <= 18) value = 1000 + Math.random() * 1000
-    hours.push({ time: hour, value: Math.round(value) })
-  }
-  return hours
-}
-
-function generateMockSourceData() {
-  return [
-    { name: 'Apps (CRM)', value: 35, color: '#22c55e', sourceKey: 'application' },
-    { name: 'Firewalls', value: 30, color: '#ef4444', sourceKey: 'firewall' },
-    { name: 'Servers', value: 20, color: '#3b82f6', sourceKey: 'ids' },
-    { name: 'Workstations', value: 15, color: '#f59e0b', sourceKey: 'endpoint' },
-  ]
-}

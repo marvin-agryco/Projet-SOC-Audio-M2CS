@@ -1,0 +1,156 @@
+<mxfile host="app.diagrams.net" modified="2026-02-25T00:00:00.000Z" agent="AudioSOC" version="24.0.0" type="device">
+  <diagram id="soc-architecture" name="SOC Architecture">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="750" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ==================== FRONTEND ==================== -->
+        <mxCell id="frontend" value="&lt;b style='font-size:14px'&gt;Frontend&lt;/b&gt;&lt;br&gt;&lt;br&gt;React 18 + TypeScript + Tailwind&lt;br&gt;&lt;br&gt;&lt;i&gt;Dashboard · Events · Alerts&lt;br&gt;Incidents · Playbooks · Sites&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="280" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="fe-port" value=":3000" style="text;html=1;fontSize=10;fontColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="275" y="42" width="40" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== BACKEND ==================== -->
+        <mxCell id="backend" value="&lt;b style='font-size:14px'&gt;Backend&lt;/b&gt;&lt;br&gt;&lt;br&gt;Python 3.11 · Flask · SQLAlchemy&lt;br&gt;&lt;br&gt;&lt;i&gt;42 API endpoints · WebSocket&lt;br&gt;Alert Engine · Correlation&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="260" width="280" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="be-port" value=":5000" style="text;html=1;fontSize=10;fontColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="275" y="262" width="40" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== Frontend <-> Backend ==================== -->
+        <mxCell id="conn-fe-be" value="WebSocket + REST" style="exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="frontend" target="backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== DATA STORES ==================== -->
+        <mxCell id="postgres" value="&lt;b&gt;PostgreSQL 15&lt;/b&gt;&lt;br&gt;Events · Incidents&lt;br&gt;Rules · Users" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="480" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="redis" value="&lt;b&gt;Redis&lt;/b&gt;&lt;br&gt;Task Queue" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="200" y="480" width="120" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Celery -->
+        <mxCell id="celery" value="&lt;b&gt;Celery Worker&lt;/b&gt;&lt;br&gt;Alert eval · Incident creation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="55" y="610" width="250" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Backend -> stores -->
+        <mxCell id="c-be-pg" value="" style="exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" parent="1" source="backend" target="postgres">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c-be-rd" value="" style="exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="backend" target="redis">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c-rd-cel" value="" style="exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.7;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#d6b656;" edge="1" parent="1" source="redis" target="celery">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c-cel-pg" value="" style="exitX=0.3;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeWidth=1;strokeColor=#6c8ebf;dashed=1;" edge="1" parent="1" source="celery" target="postgres">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== INFRASTRUCTURE ==================== -->
+        <mxCell id="infra-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="40" width="500" height="350" as="geometry" />
+        </mxCell>
+        <mxCell id="infra-title" value="&lt;b style='font-size:14px'&gt;Infrastructure Simulée&lt;/b&gt;&lt;br&gt;Docker Compose (infrastructure/)" style="text;html=1;align=center;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="580" y="50" width="260" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Firewall -->
+        <mxCell id="firewall" value="&lt;b&gt;firewall-gw&lt;/b&gt;&lt;br&gt;iptables + Wazuh Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="490" y="100" width="170" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Endpoints -->
+        <mxCell id="ep1" value="&lt;b&gt;endpoint-pc-01&lt;/b&gt;&lt;br&gt;Wazuh Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="490" y="180" width="130" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="ep2" value="&lt;b&gt;endpoint-pc-02&lt;/b&gt;&lt;br&gt;Wazuh Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="490" y="240" width="130" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Wazuh -->
+        <mxCell id="wazuh" value="&lt;b style='font-size:13px'&gt;Wazuh SIEM 4.14.2&lt;/b&gt;&lt;br&gt;&lt;br&gt;Manager · Indexer · Dashboard&lt;br&gt;:1514 · :9200 · :4443" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="690" y="130" width="240" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- GLPI -->
+        <mxCell id="glpi" value="&lt;b&gt;GLPI&lt;/b&gt;&lt;br&gt;IT Assets · MariaDB&lt;br&gt;:8080" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="490" y="310" width="170" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Endpoints -> Wazuh -->
+        <mxCell id="c-fw-wz" value="agent" style="exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;strokeWidth=1;strokeColor=#9673a6;fontSize=9;fontColor=#9673a6;" edge="1" parent="1" source="firewall" target="wazuh">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c-ep1-wz" value="agent" style="exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=1;strokeColor=#9673a6;fontSize=9;fontColor=#9673a6;" edge="1" parent="1" source="ep1" target="wazuh">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c-ep2-wz" value="agent" style="exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;strokeWidth=1;strokeColor=#9673a6;fontSize=9;fontColor=#9673a6;" edge="1" parent="1" source="ep2" target="wazuh">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Wazuh -> Backend (webhook) -->
+        <mxCell id="c-wz-be" value="&lt;b&gt;webhook&lt;/b&gt;&lt;br&gt;POST /api/ingest" style="exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0.35;entryDx=0;entryDy=0;strokeWidth=3;strokeColor=#b85450;fontSize=10;fontColor=#b85450;labelBackgroundColor=#ffffff;rounded=1;" edge="1" parent="1" source="wazuh" target="backend">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="205" />
+              <mxPoint x="430" y="306" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Backend -> GLPI -->
+        <mxCell id="c-be-glpi" value="REST API" style="exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#d6b656;fontSize=10;fontColor=#d6b656;dashed=1;labelBackgroundColor=#ffffff;rounded=1;" edge="1" parent="1" source="backend" target="glpi">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="358" />
+              <mxPoint x="430" y="338" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ==================== MITIGATION FLOW ==================== -->
+        <mxCell id="mit-title" value="&lt;b&gt;Chaîne de Mitigation Automatisée&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontColor=#b85450;fontStyle=5;" vertex="1" parent="1">
+          <mxGeometry x="480" y="440" width="460" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="m1" value="&lt;b&gt;1&lt;/b&gt; Wazuh Alert" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="480" y="480" width="110" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="m2" value="&lt;b&gt;2&lt;/b&gt; SOC Ingest" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="610" y="480" width="110" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="m3" value="&lt;b&gt;3&lt;/b&gt; Alert Rule" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="740" y="480" width="110" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="m4" value="&lt;b&gt;5&lt;/b&gt; Active Response&lt;br&gt;(IP bloquée)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="480" y="540" width="110" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="m5" value="&lt;b&gt;4&lt;/b&gt; Playbook" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="610" y="540" width="140" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Flow arrows -->
+        <mxCell id="a1" value="" style="exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="m1" target="m2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" value="" style="exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="m2" target="m3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" value="" style="exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#b85450;rounded=1;" edge="1" parent="1" source="m3" target="m5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" value="" style="exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="m5" target="m4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

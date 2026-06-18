@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react'
+import { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   Shield,
@@ -11,7 +11,8 @@ import {
   WifiOff,
 } from 'lucide-react'
 import { useSocket } from '../hooks/useSocket'
-import TopBar, { UserRole } from './TopBar'
+import { useLanguage } from '../context/LanguageContext'
+import TopBar from './TopBar'
 import clsx from 'clsx'
 
 interface LayoutProps {
@@ -19,22 +20,29 @@ interface LayoutProps {
 }
 
 const navItems = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/alerts', icon: Bell, label: 'Alerts' },
-  { path: '/events', icon: FileText, label: 'Events Log' },
-  { path: '/playbooks', icon: BookOpen, label: 'Playbooks' },
-  { path: '/sites', icon: Server, label: 'Assets & Infrastructure' },
+  { path: '/', icon: LayoutDashboard, labelKey: 'sidebar.dashboard' },
+  { path: '/events', icon: FileText, labelKey: 'sidebar.eventsLog' },
+  { path: '/alerts', icon: Bell, labelKey: 'sidebar.alerts' },
+  { path: '/incidents', icon: Shield, labelKey: 'sidebar.incidents' },
+  { path: '/playbooks', icon: BookOpen, labelKey: 'sidebar.playbooks' },
+  { path: '/sites', icon: Server, labelKey: 'sidebar.assets' },
 ]
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation()
   const { connected, alerts } = useSocket()
-  const [currentRole, setCurrentRole] = useState<UserRole>('Analyst')
+  const { t } = useLanguage()
 
   return (
-    <div className="min-h-screen flex bg-slate-900">
+    <div className="min-h-screen flex transition-colors duration-300" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
       {/* Fixed Sidebar */}
-      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-slate-900 border-r border-slate-700 flex flex-col z-40">
+      <aside
+        className="fixed left-0 top-0 bottom-0 w-64 border-r flex flex-col z-40 transition-colors duration-300"
+        style={{
+          backgroundColor: 'var(--color-sidebar)',
+          borderColor: 'var(--color-border)'
+        }}
+      >
         {/* Logo */}
         <div className="p-5 border-b border-slate-700">
           <Link to="/" className="flex items-center gap-3">
@@ -67,7 +75,7 @@ export default function Layout({ children }: LayoutProps) {
                 )}
               >
                 <Icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
+                <span className="font-medium">{t(item.labelKey)}</span>
                 {item.path === '/alerts' && alerts.length > 0 && (
                   <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
                     {alerts.length}
@@ -89,11 +97,11 @@ export default function Layout({ children }: LayoutProps) {
             ) : (
               <>
                 <WifiOff className="w-4 h-4 text-red-500" />
-                <span className="text-red-400">Disconnected</span>
+                <span className="text-red-400">{t('sidebar.disconnected')}</span>
               </>
             )}
           </div>
-          <p className="text-xs text-slate-600 mt-1">Secure Connection</p>
+          <p className="text-xs text-slate-600 mt-1">{t('sidebar.secureConnection')}</p>
         </div>
       </aside>
 
@@ -102,10 +110,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* TopBar */}
         <TopBar
           systemStatus={connected ? 'online' : 'offline'}
-          monitoringCount={32}
-          currentRole={currentRole}
-          onRoleChange={setCurrentRole}
-          userName="Demo User"
+          monitoringCount={30}
           alertCount={alerts.length}
         />
 

@@ -32,13 +32,10 @@ const severityOptions: Array<{ value: Severity; label: string; color: string }> 
 ]
 
 const sourceOptions: Array<{ value: EventSource; label: string }> = [
-    { value: 'firewall', label: 'Firewalls' },
-    { value: 'ids', label: 'IDS/Servers' },
+    { value: 'firewall', label: 'Firewall' },
+    { value: 'ids', label: 'IDS / Suricata' },
     { value: 'endpoint', label: 'Endpoints' },
-    { value: 'active_directory', label: 'Active Directory' },
-    { value: 'email', label: 'Email Gateway' },
-    { value: 'application', label: 'Applications' },
-    { value: 'network', label: 'Network' },
+    { value: 'application', label: 'GLPI' },
 ]
 
 export default function GlobalFilters({

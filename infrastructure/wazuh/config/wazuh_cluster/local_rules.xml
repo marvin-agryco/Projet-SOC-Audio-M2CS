@@ -1,0 +1,58 @@
+<!-- Local rules -->
+<!-- Copyright (C) 2015, Wazuh Inc. -->
+
+<group name="local,syslog,sshd,">
+  <rule id="100001" level="5">
+    <if_sid>5716</if_sid>
+    <srcip>1.1.1.1</srcip>
+    <description>sshd: authentication failed from IP 1.1.1.1.</description>
+    <group>authentication_failed,pci_dss_10.2.4,pci_dss_10.2.5,</group>
+  </rule>
+</group>
+
+<!-- Custom Suricata IDS rules: forward IDS alerts to SOC dashboard -->
+<group name="local,ids,suricata,">
+  <rule id="100200" level="4">
+    <if_sid>86601</if_sid>
+    <description>Suricata IDS alert (forwarded to SOC).</description>
+    <group>ids,suricata,</group>
+  </rule>
+
+  <rule id="100201" level="8" frequency="10" timeframe="60">
+    <if_matched_sid>100200</if_matched_sid>
+    <same_source_ip />
+    <description>Multiple Suricata IDS alerts from same source IP.</description>
+    <group>ids,suricata,attack,</group>
+  </rule>
+
+  <rule id="100202" level="10">
+    <if_sid>86601</if_sid>
+    <match>severity": 1</match>
+    <description>Suricata high-priority IDS alert (severity 1).</description>
+    <group>ids,suricata,exploit,</group>
+  </rule>
+</group>
+
+<!-- Custom firewall rules: forward iptables drops to SOC dashboard -->
+<group name="local,firewall,">
+  <rule id="100100" level="4">
+    <if_sid>4100</if_sid>
+    <match>IPTables-Dropped</match>
+    <description>Firewall drop event (forwarded to SOC).</description>
+    <group>firewall,firewall_drop,iptables,</group>
+  </rule>
+
+  <rule id="100101" level="8" frequency="10" timeframe="60">
+    <if_matched_sid>100100</if_matched_sid>
+    <same_source_ip />
+    <description>Multiple firewall drops from same source IP.</description>
+    <group>firewall,firewall_drop,iptables,attack,</group>
+  </rule>
+
+  <rule id="100102" level="3">
+    <if_sid>4100</if_sid>
+    <match>HTTP-Access</match>
+    <description>Firewall allowed connection.</description>
+    <group>firewall,iptables,</group>
+  </rule>
+</group>

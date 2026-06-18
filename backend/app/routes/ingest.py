@@ -61,15 +61,14 @@ def ingest_event():
 
         event_dict = event.to_dict()
 
-        # Broadcast to WebSocket clients
-        socketio.emit('new_event', event_dict)
-
-        # If critical/high severity, emit alert
-        if data['severity'] in ('critical', 'high'):
-            socketio.emit('alert', {
-                'type': 'new_critical_event',
-                'event': event_dict
-            })
+        # Broadcast to WebSocket clients (suppress keepalive heartbeats)
+        if data['event_type'] != 'keepalive':
+            socketio.emit('new_event', event_dict)
+            if data['severity'] in ('critical', 'high'):
+                socketio.emit('alert', {
+                    'type': 'new_critical_event',
+                    'event': event_dict
+                })
 
         return jsonify(event_dict), 201
 

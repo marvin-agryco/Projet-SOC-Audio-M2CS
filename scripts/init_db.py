@@ -32,10 +32,11 @@ def seed_demo_data():
         print("Seeding demo data...")
 
         # Create demo users
+        # Create demo users
         users = [
             {"username": "admin", "email": "admin@audiopro.fr", "password": "admin123", "role": UserRole.ADMIN},
-            {"username": "analyst1", "email": "analyst1@audiopro.fr", "password": "analyst123", "role": UserRole.ANALYST},
-            {"username": "supervisor", "email": "supervisor@audiopro.fr", "password": "super123", "role": UserRole.SUPERVISOR},
+            {"username": "analyst", "email": "analyst@audiopro.fr", "password": "analyst123", "role": UserRole.ANALYST},
+            {"username": "supervisor", "email": "supervisor@audiopro.fr", "password": "supervisor123", "role": UserRole.SUPERVISOR},
         ]
 
         for user_data in users:
