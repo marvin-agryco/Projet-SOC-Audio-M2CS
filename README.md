@@ -156,8 +156,8 @@ python3 scripts/log_generator.py --backfill --days 30 --count 2000  # Historique
 - [x] Suite Compliance Export (v1.10) — PDF audit-ready avec SHA-256, Glass Chronos date picker
 - [x] Page Events temps réel + groupement / burst detection + PDF Incident (v1.11)
 - [x] Rapport technique complet
-- [ ] Guide de déploiement & d'utilisation
-- [ ] Vidéo de démonstration
+- [x] Guide de déploiement & d'utilisation
+- [x] Vidéo de démonstration
 
 ## Équipe
 
