@@ -161,9 +161,9 @@ python3 scripts/log_generator.py --backfill --days 30 --count 2000  # Historique
 
 ## Équipe
 
-- **Étudiant 1** : Ingénieur SIEM (déploiement, collecte, intégration)
-- **Étudiant 2** : Analyste SOC (détection, dashboards, playbooks)
-- **Étudiant 3** : Coordinateur (supervision, démo, documentation)
+- **Étudiant 1**Marvin CHARMILLON : Ingénieur SIEM (déploiement, collecte, intégration)
+- **Étudiant 2**Elric MOREAU : Analyste SOC (détection, dashboards, playbooks)
+- **Étudiant 3**Joé DA SILVA  : Coordinateur (supervision, démo, documentation)
 
 ## Licence
 
